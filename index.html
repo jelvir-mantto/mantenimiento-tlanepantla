@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Mant. Tlanepantla">
+<title>Mantenimiento · Tlanepantla</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#fff;--bg2:#f7f7f5;--bg3:#efefec;
+  --text:#111;--text2:#666;--text3:#aaa;
+  --brd:rgba(0,0,0,0.11);--brd2:rgba(0,0,0,0.22);
+  --G:#1D9E75;--Gbg:#E1F5EE;--Gtxt:#085041;
+  --A:#BA7517;--Abg:#FAEEDA;--Atxt:#633806;
+  --R:#E24B4A;--Rbg:#FCEBEB;--Rtxt:#791F1F;
+  --B:#185FA5;--Bbg:#E6F1FB;--Btxt:#0C447C;
+  --r:8px;--rl:12px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#1c1c1e;--bg2:#2c2c2e;--bg3:#3a3a3c;
+  --text:#f2f2f7;--text2:#aeaeb2;--text3:#636366;
+  --brd:rgba(255,255,255,0.11);--brd2:rgba(255,255,255,0.22);
+  --Gbg:#0a3328;--Gtxt:#5DCAA5;
+  --Abg:#2e1f00;--Atxt:#FAC775;
+  --Rbg:#2e0a0a;--Rtxt:#F09595;
+  --Bbg:#051e3a;--Btxt:#85B7EB;
+}}
+html{height:100%;-webkit-text-size-adjust:100%}
+body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg3);color:var(--text);font-size:14px}
+
+/* HEADER — fijo en la parte superior */
+.hdr{position:sticky;top:0;z-index:100;height:54px;background:var(--bg);border-bottom:0.5px solid var(--brd);display:flex;align-items:center;padding:0 14px;gap:10px}
+.hdr h1{flex:1;font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mnav{display:flex;align-items:center;gap:6px}
+.mnav button{background:none;border:1px solid var(--brd2);border-radius:6px;padding:5px 11px;cursor:pointer;color:var(--text);font-size:15px;line-height:1;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.mnav span{font-size:13px;font-weight:600;min-width:115px;text-align:center;color:var(--text)}
+
+/* TABS desktop — sticky debajo del header */
+.tabs{position:sticky;top:54px;z-index:99;height:44px;background:var(--bg);border-bottom:0.5px solid var(--brd);display:flex;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;height:100%;padding:0 18px;display:flex;align-items:center;font-size:13px;font-weight:500;color:var(--text2);border:none;border-bottom:2.5px solid transparent;background:none;cursor:pointer;white-space:nowrap;font-family:inherit;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.tab.on{color:var(--G);border-bottom-color:var(--G);font-weight:700}
+
+/* PANELS — flujo normal, scroll del documento */
+.wrap{}
+.pnl{display:none;padding:13px;flex-direction:column;gap:11px;min-height:60vh}
+.pnl.on{display:flex}
+
+/* CARD */
+.card{background:var(--bg);border:0.5px solid var(--brd);border-radius:var(--rl);padding:14px;flex-shrink:0}
+.ct{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text2);margin-bottom:10px}
+
+/* GRID */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+@media(max-width:480px){.g3{grid-template-columns:1fr 1fr}}
+
+/* METRIC */
+.met{background:var(--bg2);border-radius:var(--r);padding:10px 6px;text-align:center}
+.mv{font-size:28px;font-weight:700;line-height:1.1}
+.ml{font-size:10px;color:var(--text2);margin-top:2px}
+.cG{color:var(--G)}.cA{color:var(--A)}.cB{color:var(--B)}
+
+/* BADGE */
+.bdg{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.bG{background:var(--Gbg);color:var(--Gtxt)}.bA{background:var(--Abg);color:var(--Atxt)}
+.bR{background:var(--Rbg);color:var(--Rtxt)}.bB{background:var(--Bbg);color:var(--Btxt)}
+.b0{background:var(--bg3);color:var(--text2)}
+
+/* FORM */
+input,select,textarea{width:100%;padding:9px 11px;font-size:14px;border:0.5px solid var(--brd2);border-radius:var(--r);background:var(--bg);color:var(--text);font-family:inherit;-webkit-appearance:none;appearance:none}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--G);outline-offset:-1px}
+textarea{resize:vertical;min-height:58px}
+label{font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fr{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* BUTTON */
+.btn{padding:10px 18px;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;border:1px solid var(--brd2);background:var(--bg2);color:var(--text);font-family:inherit;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.btn:active{opacity:.7}
+.btnP{background:var(--G);color:#fff;border-color:var(--G)}
+.btnD{background:var(--Rbg);color:var(--Rtxt);border-color:var(--R)}
+.btnSm{padding:7px 12px;font-size:13px}
+.btnXs{padding:4px 9px;font-size:11px;font-weight:600;border:1px solid var(--brd);border-radius:var(--r);background:transparent;color:var(--text2);cursor:pointer;font-family:inherit;touch-action:manipulation}
+.w100{width:100%}
+
+/* TABLE */
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--r)}
+table{width:100%;border-collapse:collapse;font-size:12px;min-width:500px}
+th{padding:7px 8px;font-size:10px;font-weight:700;color:var(--text2);border-bottom:1px solid var(--brd);background:var(--bg2);text-align:left;white-space:nowrap}
+td{padding:7px 8px;border-bottom:0.5px solid var(--brd);vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px}
+tr:last-child td{border-bottom:none}
+.trk{cursor:pointer}
+.trk:hover td,.trk:active td{background:var(--bg2)}
+
+/* MISC */
+.pb{height:5px;border-radius:3px;background:var(--bg3);overflow:hidden;margin-top:4px}
+.pf{height:100%;border-radius:3px}
+.ri{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--brd)}
+.ri:last-child{border-bottom:none}
+.av{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0}
+.ntf{padding:10px 14px;border-radius:var(--r);font-size:12px;font-weight:600;margin-bottom:6px}
+.ntfW{background:var(--Abg);color:var(--Atxt)}.ntfG{background:var(--Gbg);color:var(--Gtxt)}
+.empty{text-align:center;padding:28px;color:var(--text2);font-size:13px}
+.dz{border:2px dashed var(--brd2);border-radius:var(--rl);padding:22px 16px;text-align:center;color:var(--text2);cursor:pointer;touch-action:manipulation;transition:border-color .2s,background .2s}
+.dz:active,.dz.drag{border-color:var(--G);background:var(--Gbg);color:var(--Gtxt)}
+
+/* CALENDAR */
+.cal-hd{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px}
+.cal-gr{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cc{border-radius:6px;padding:4px 3px;border:0.5px solid var(--brd);background:var(--bg2);min-height:44px}
+.cc .dn{font-size:11px;font-weight:700;margin-bottom:1px}
+.dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin:1px}
+
+/* GUARDIAS */
+.gw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.gg{display:grid;gap:6px;min-width:460px}
+.gr{display:grid;grid-template-columns:110px repeat(5,1fr);gap:5px;align-items:center}
+.gtc{font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gc2{border-radius:var(--r);padding:6px 3px;font-size:11px;font-weight:600;text-align:center;border:0.5px solid var(--brd);background:var(--bg2);cursor:pointer;min-height:40px;display:flex;align-items:center;justify-content:center;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.gc2.grd{background:var(--Gbg);border-color:var(--G);color:var(--Gtxt)}
+.gc2.vac{background:var(--Abg);border-color:var(--A);color:var(--Atxt)}
+.sh{font-size:10px;text-align:center;color:var(--text2);font-weight:600;line-height:1.3}
+
+/* INCIDENCIA CARD */
+.icard{border-left:3px solid var(--A);padding:11px 12px;margin-bottom:8px;border-radius:0 var(--r) var(--r) 0;background:var(--bg2)}
+.icard.ip{border-left-color:var(--B)}.icard.ir{border-left-color:var(--G)}
+
+/* ── BOTTOM NAV (mobile) — fijo en la parte inferior ── */
+.bnav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:100;background:var(--bg);border-top:0.5px solid var(--brd);padding-bottom:env(safe-area-inset-bottom,0px)}
+.bnav-inner{display:flex}
+.bi{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 2px 6px;color:var(--text3);font-size:10px;font-weight:600;gap:2px;background:none;border:none;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-user-select:none;user-select:none;min-height:54px}
+.bi.on{color:var(--G)}
+.bico{font-size:22px;line-height:1}
+
+/* MODAL */
+.moverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;justify-content:center}
+.moverlay.on{display:flex}
+.modal{background:var(--bg);border-radius:20px 20px 0 0;padding:20px 16px 32px;width:100%;max-width:520px;max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+@media(min-width:600px){
+  .moverlay{align-items:center}
+  .modal{border-radius:var(--rl);max-height:80vh;padding-bottom:20px}
+}
+.modal h2{font-size:17px;font-weight:700;margin-bottom:14px;padding-right:30px}
+.mclose{position:absolute;top:16px;right:16px;background:var(--bg3);border:none;border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;color:var(--text)}
+
+/* responsive tab/bnav switch */
+@media(max-width:600px){
+  .tabs{display:none;top:54px}
+  .bnav{display:block}
+  /* espacio para el nav fijo inferior */
+  .pnl{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 72px)}
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>Mantenimiento · Tlanepantla</h1>
+  <div class="mnav">
+    <button id="btnPrev" aria-label="Mes anterior">&#8592;</button>
+    <span id="mesLbl"></span>
+    <button id="btnNext" aria-label="Mes siguiente">&#8594;</button>
+  </div>
+</div>
+
+<!-- TABS desktop -->
+<div class="tabs" id="tabs">
+  <button class="tab on" data-tab="panel">Panel</button>
+  <button class="tab" data-tab="prog">Programación</button>
+  <button class="tab" data-tab="personal">Personal</button>
+  <button class="tab" data-tab="incidencias">Incidencias</button>
+  <button class="tab" data-tab="guardias">Guardias</button>
+</div>
+
+<!-- PANELS -->
+<div class="wrap" id="wrap">
+
+  <!-- PANEL -->
+  <div class="pnl on" id="pnl-panel">
+    <div id="p-notifs"></div>
+    <div class="g3">
+      <div class="met"><div class="mv cG" id="m-comp">0</div><div class="ml">Realizadas</div></div>
+      <div class="met"><div class="mv cA" id="m-prog">0</div><div class="ml">En progreso</div></div>
+      <div class="met"><div class="mv cB" id="m-pend">0</div><div class="ml">Pendientes</div></div>
+    </div>
+    <div class="g2">
+      <div class="card"><div class="ct">Por área</div><div id="p-areas"></div></div>
+      <div class="card"><div class="ct">Incidencias</div><div id="p-incs"></div></div>
+    </div>
+    <div class="card">
+      <div class="ct">Próximas pendientes</div>
+      <div class="tw" id="p-prox"></div>
+    </div>
+  </div>
+
+  <!-- PROGRAMACIÓN -->
+  <div class="pnl" id="pnl-prog">
+    <!-- Import -->
+    <div class="card">
+      <div class="ct">Importar desde Easy Maint (.xlsx / .csv)</div>
+      <div class="dz" id="dropzone">
+        Toca aquí para cargar archivo .xlsx<br>
+        <span style="font-size:11px;margin-top:4px;display:block">Columnas: A=ID · B=Descripción · D=Equipo · AL=Edificio · AM=Nivel · AN=Área</span>
+      </div>
+      <input type="file" id="fileIn" accept=".xlsx,.xls,.csv" style="display:none">
+      <div id="impSt" style="margin-top:8px;font-size:12px;min-height:16px"></div>
+    </div>
+
+    <!-- Agregar manualmente -->
+    <div class="card">
+      <div class="ct">Agregar actividad</div>
+      <div class="g2" style="margin-bottom:8px">
+        <div class="fg"><label>ID</label><input id="a-id" type="text" placeholder="OT-001"></div>
+        <div class="fg"><label>Equipo</label><input id="a-equipo" type="text" placeholder="Molino 1"></div>
+      </div>
+      <div class="fg" style="margin-bottom:8px">
+        <label>Descripción</label><input id="a-desc" type="text" placeholder="Lubricación rodamientos...">
+      </div>
+      <div class="g3" style="margin-bottom:8px">
+        <div class="fg"><label>Edificio</label><input id="a-edificio" type="text" placeholder="Nave A"></div>
+        <div class="fg"><label>Nivel</label><input id="a-nivel" type="text" placeholder="Planta baja"></div>
+        <div class="fg"><label>Área</label><input id="a-area" type="text" placeholder="Molienda"></div>
+      </div>
+      <div class="g3" style="margin-bottom:10px">
+        <div class="fg"><label>Tipo</label>
+          <select id="a-tipo"><option>Mecánico</option><option>Eléctrico</option></select>
+        </div>
+        <div class="fg"><label>Fecha</label><input id="a-fecha" type="date"></div>
+        <div class="fg"><label>Técnico</label><select id="a-tec"></select></div>
+      </div>
+      <button class="btn btnP w100" id="btnAddAct">Agregar actividad</button>
+    </div>
+
+    <!-- Calendario -->
+    <div class="card">
+      <div class="ct">Calendario</div>
+      <div class="cal-hd" id="cal-hd"></div>
+      <div class="cal-gr" id="cal"></div>
+      <div class="fr" style="margin-top:10px;gap:14px;font-size:11px;color:var(--text2)">
+        <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--G);margin-right:3px"></span>Mecánico</span>
+        <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--B);margin-right:3px"></span>Eléctrico</span>
+      </div>
+    </div>
+
+    <!-- Lista -->
+    <div class="card">
+      <div class="ct">Lista de actividades · toca una fila para editar</div>
+      <div class="tw" id="act-list"></div>
+    </div>
+  </div>
+
+  <!-- PERSONAL -->
+  <div class="pnl" id="pnl-personal">
+    <div class="card">
+      <div class="ct">Registrar técnico</div>
+      <div class="g2" style="margin-bottom:10px">
+        <div class="fg"><label>Nombre</label><input id="t-nom" type="text" placeholder="Nombre completo"></div>
+        <div class="fg"><label>Especialidad</label>
+          <select id="t-esp"><option>Mecánico</option><option>Eléctrico</option></select>
+        </div>
+      </div>
+      <button class="btn btnP w100" id="btnAddTec">Agregar técnico</button>
+    </div>
+    <div class="card"><div class="ct">Equipo</div><div id="tec-list"></div></div>
+  </div>
+
+  <!-- INCIDENCIAS -->
+  <div class="pnl" id="pnl-incidencias">
+    <div class="card">
+      <div class="ct">Registrar incidencia</div>
+      <div class="g2" style="margin-bottom:8px">
+        <div class="fg"><label>Área que reporta</label><input id="i-orig" type="text" placeholder="Producción..."></div>
+        <div class="fg"><label>Área afectada</label><input id="i-area" type="text" placeholder="Molienda"></div>
+      </div>
+      <div class="g2" style="margin-bottom:8px">
+        <div class="fg"><label>Fecha</label><input id="i-fecha" type="date"></div>
+        <div class="fg"><label>Tipo de trabajo</label>
+          <select id="i-tipo"><option>Mecánico</option><option>Eléctrico</option><option>Ambos</option></select>
+        </div>
+      </div>
+      <div class="fg" style="margin-bottom:10px">
+        <label>Descripción</label><textarea id="i-desc" placeholder="Describe el problema..."></textarea>
+      </div>
+      <button class="btn btnP w100" id="btnAddInc">Registrar incidencia</button>
+    </div>
+    <div class="card"><div class="ct">Incidencias del mes</div><div id="inc-list"></div></div>
+  </div>
+
+  <!-- GUARDIAS -->
+  <div class="pnl" id="pnl-guardias">
+    <div class="card">
+      <div class="ct">Guardias del mes · lunes a lunes</div>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Toca cada celda para cambiar: Guardia → Vacaciones → Sin guardia.</p>
+      <div class="gw">
+        <div class="gr" id="g-hdr" style="margin-bottom:4px"></div>
+        <div class="gg" id="g-grid"></div>
+      </div>
+      <div class="fr" style="margin-top:12px;gap:14px;font-size:11px;color:var(--text2)">
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--Gbg);border:1px solid var(--G);margin-right:3px"></span>Guardia</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--Abg);border:1px solid var(--A);margin-right:3px"></span>Vacaciones</span>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /wrap -->
+
+<!-- BOTTOM NAV mobile -->
+<nav class="bnav" id="bnav">
+  <div class="bnav-inner">
+    <button class="bi on" data-tab="panel"><span class="bico">&#9781;</span>Panel</button>
+    <button class="bi" data-tab="prog"><span class="bico">&#128197;</span>Program.</button>
+    <button class="bi" data-tab="personal"><span class="bico">&#128101;</span>Personal</button>
+    <button class="bi" data-tab="incidencias"><span class="bico">&#9888;</span>Incid.</button>
+    <button class="bi" data-tab="guardias"><span class="bico">&#128274;</span>Guardias</button>
+  </div>
+</nav>
+
+<!-- MODAL editar actividad -->
+<div class="moverlay" id="editModal" role="dialog" aria-modal="true">
+  <div class="modal" style="position:relative">
+    <button class="mclose" id="editClose" aria-label="Cerrar">&#x2715;</button>
+    <h2 id="editTitle">Editar actividad</h2>
+    <div id="editBody"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+// ═══ ESTADO ═══════════════════════════════════════════
+const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const HOY=new Date();
+let MES={y:HOY.getFullYear(),m:HOY.getMonth()};
+let TAB='panel';
+
+// ═══ DB ════════════════════════════════════════════════
+function mesKey(y,m){return `${y}-${String(m+1).padStart(2,'0')}`}
+function mak(){return mesKey(MES.y,MES.m)}
+function loadDB(){try{return JSON.parse(localStorage.getItem('mant_tlane2')||'{}')}catch{return {}}}
+function saveDB(db){localStorage.setItem('mant_tlane2',JSON.stringify(db))}
+function getDB(){
+  const db=loadDB();
+  if(!db.tecs)db.tecs=[];
+  if(!db.guard)db.guard={};
+  if(!db.meses)db.meses={};
+  // purge > 6 meses
+  const lim=new Date(HOY.getFullYear(),HOY.getMonth()-5,1);
+  const limk=mesKey(lim.getFullYear(),lim.getMonth());
+  Object.keys(db.meses).forEach(k=>{if(k<limk)delete db.meses[k]});
+  Object.keys(db.guard).forEach(k=>{if(k<limk)delete db.guard[k]});
+  return db;
+}
+function getMD(db,key){
+  if(!db.meses[key])db.meses[key]={acts:[],incs:[],nA:1,nI:1};
+  return db.meses[key];
+}
+function hoy(){
+  return `${HOY.getFullYear()}-${String(HOY.getMonth()+1).padStart(2,'0')}-${String(HOY.getDate()).padStart(2,'0')}`;
+}
+
+// ═══ NAVEGACIÓN ════════════════════════════════════════
+function sw(t){
+  TAB=t;
+  document.querySelectorAll('.tab,.bi').forEach(el=>el.classList.toggle('on',el.dataset.tab===t));
+  document.querySelectorAll('.pnl').forEach(el=>el.classList.toggle('on',el.id==='pnl-'+t));
+  window.scrollTo({top:0,behavior:'instant'});
+  ({panel:rPanel,prog:rProg,personal:rPersonal,incidencias:rInc,guardias:rGuard}[t]||noop)();
+  syncTec();
+}
+function noop(){}
+
+function cambiarMes(d){
+  MES.m+=d;
+  if(MES.m>11){MES.m=0;MES.y++}
+  if(MES.m<0){MES.m=11;MES.y--}
+  document.getElementById('mesLbl').textContent=`${MESES[MES.m]} ${MES.y}`;
+  sw(TAB);
+}
+
+// registrar todos los clicks de navegación con eventos robustos
+function regNav(){
+  // tabs y bnav
+  document.querySelectorAll('.tab,.bi').forEach(btn=>{
+    btn.addEventListener('click',()=>sw(btn.dataset.tab));
+  });
+  // mes anterior/siguiente
+  document.getElementById('btnPrev').addEventListener('click',()=>cambiarMes(-1));
+  document.getElementById('btnNext').addEventListener('click',()=>cambiarMes(1));
+  // modal close
+  document.getElementById('editClose').addEventListener('click',closeEdit);
+  document.getElementById('editModal').addEventListener('click',e=>{if(e.target.id==='editModal')closeEdit()});
+  // import
+  document.getElementById('dropzone').addEventListener('click',()=>document.getElementById('fileIn').click());
+  document.getElementById('fileIn').addEventListener('change',function(){importFile(this)});
+  // drag
+  const dz=document.getElementById('dropzone');
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag')});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+  dz.addEventListener('drop',e=>{
+    e.preventDefault();dz.classList.remove('drag');
+    const f=e.dataTransfer.files[0];
+    if(f){const fi=document.getElementById('fileIn');fi.files=e.dataTransfer.files;importFile(fi)}
+  });
+  // form buttons
+  document.getElementById('btnAddAct').addEventListener('click',addAct);
+  document.getElementById('btnAddTec').addEventListener('click',addTec);
+  document.getElementById('btnAddInc').addEventListener('click',addInc);
+}
+
+// ═══ IMPORT ════════════════════════════════════════════
+function importFile(input){
+  const file=input.files[0];
+  if(!file)return;
+  const st=document.getElementById('impSt');
+  st.style.color='var(--text2)';
+  st.textContent='Leyendo archivo...';
+
+  if(file.name.toLowerCase().endsWith('.csv')){
+    const r=new FileReader();
+    r.onload=e=>{
+      const lines=e.target.result.split('\n').filter(l=>l.trim());
+      const db=getDB();const md=getMD(db,mak());
+      let n=0;
+      lines.slice(1).forEach(line=>{
+        const p=line.split(',').map(x=>x.replace(/^"|"$/g,'').trim());
+        const actId=p[0]||'',desc=p[1]||'';
+        if(!actId&&!desc)return;
+        md.acts.push(mkAct(md.nA++,actId,desc,p[3]||'',p[37]||'',p[38]||'',p[39]||''));
+        n++;
+      });
+      saveDB(db);
+      st.style.color='var(--Gtxt)';st.textContent=`✓ ${n} actividades importadas`;
+      rProg();rPanel();input.value='';
+    };
+    r.readAsText(file);return;
+  }
+
+  if(typeof XLSX==='undefined'){
+    st.style.color='var(--Rtxt)';st.textContent='Sin conexión a internet: la librería XLSX no cargó. Intenta con CSV.';return;
+  }
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      const db=getDB();const md=getMD(db,mak());
+      let n=0;
+      rows.slice(1).forEach(row=>{
+        const actId=String(row[0]||'').trim();
+        const desc=String(row[1]||'').trim();
+        if(!actId&&!desc)return;
+        // A=0,B=1,D=3,AL=37,AM=38,AN=39
+        md.acts.push(mkAct(md.nA++,actId,desc,String(row[3]||'').trim(),String(row[37]||'').trim(),String(row[38]||'').trim(),String(row[39]||'').trim()));
+        n++;
+      });
+      saveDB(db);
+      st.style.color='var(--Gtxt)';st.textContent=`✓ ${n} actividades importadas`;
+      rProg();rPanel();
+    }catch(err){
+      st.style.color='var(--Rtxt)';st.textContent='Error al leer el archivo. Verifica que sea .xlsx válido.';
+      console.error(err);
+    }
+    input.value='';
+  };
+  r.readAsArrayBuffer(file);
+}
+
+function mkAct(id,actId,desc,equipo,edificio,nivel,area){
+  const db=getDB();
+  return {id,actId,desc,equipo,edificio,nivel,area,
+    tipo:'Mecánico',fecha:'',tec:db.tecs[0]?.nom||'',est:'Pendiente'};
+}
+
+// ═══ TÉCNICOS ══════════════════════════════════════════
+function addTec(){
+  const nom=document.getElementById('t-nom').value.trim();
+  if(!nom){alert('Escribe el nombre');return}
+  const db=getDB();
+  if(db.tecs.find(t=>t.nom===nom)){alert('Ya existe ese técnico');return}
+  db.tecs.push({id:Date.now(),nom,esp:document.getElementById('t-esp').value});
+  saveDB(db);document.getElementById('t-nom').value='';
+  rPersonal();syncTec();
+}
+function delTec(id){
+  if(!confirm('¿Quitar técnico?'))return;
+  const db=getDB();db.tecs=db.tecs.filter(t=>t.id!==id);saveDB(db);rPersonal();syncTec();
+}
+function syncTec(){
+  const tecs=getDB().tecs;
+  const el=document.getElementById('a-tec');
+  if(!el)return;
+  el.innerHTML=tecs.length===0?'<option value="">— agregar técnicos primero —</option>':tecs.map(t=>`<option value="${t.nom}">${t.nom} (${t.esp})</option>`).join('');
+}
+
+// ═══ ACTIVIDADES ═══════════════════════════════════════
+function addAct(){
+  const desc=document.getElementById('a-desc').value.trim();
+  const fecha=document.getElementById('a-fecha').value;
+  if(!desc||!fecha){alert('Completa al menos descripción y fecha');return}
+  const db=getDB();const md=getMD(db,mak());
+  md.acts.push({
+    id:md.nA++,
+    actId:document.getElementById('a-id').value.trim(),
+    desc,
+    equipo:document.getElementById('a-equipo').value.trim(),
+    edificio:document.getElementById('a-edificio').value.trim(),
+    nivel:document.getElementById('a-nivel').value.trim(),
+    area:document.getElementById('a-area').value.trim(),
+    tipo:document.getElementById('a-tipo').value,
+    fecha,
+    tec:document.getElementById('a-tec').value,
+    est:'Pendiente'
+  });
+  saveDB(db);
+  ['a-id','a-desc','a-equipo','a-edificio','a-nivel','a-area'].forEach(id=>document.getElementById(id).value='');
+  rProg();rPanel();
+}
+
+function saveActEdit(id){
+  const db=getDB();const md=getMD(db,mak());
+  const a=md.acts.find(x=>x.id===id);
+  if(!a)return;
+  a.fecha=document.getElementById('ef-fecha').value||a.fecha;
+  a.tec=document.getElementById('ef-tec').value||a.tec;
+  a.tipo=document.getElementById('ef-tipo').value;
+  a.est=document.getElementById('ef-est').value;
+  a.nivel=document.getElementById('ef-nivel').value;
+  a.edificio=document.getElementById('ef-edificio').value;
+  a.area=document.getElementById('ef-area').value;
+  saveDB(db);closeEdit();rProg();rPanel();
+}
+
+function elimAct(id){
+  const db=getDB();const md=getMD(db,mak());
+  md.acts=md.acts.filter(a=>a.id!==id);
+  saveDB(db);closeEdit();rProg();rPanel();
+}
+
+// ═══ MODAL EDITAR ══════════════════════════════════════
+function openEdit(id){
+  const db=getDB();const md=getMD(db,mak());
+  const a=md.acts.find(x=>x.id===id);
+  if(!a)return;
+  const tecs=db.tecs;
+  const tecOpts=tecs.map(t=>`<option value="${t.nom}"${t.nom===a.tec?' selected':''}>${t.nom} (${t.esp})</option>`).join('');
+  document.getElementById('editTitle').textContent=a.actId?`${a.actId} — ${a.desc}`:a.desc;
+  document.getElementById('editBody').innerHTML=`
+    <div class="fg" style="margin-bottom:8px">
+      <label>Descripción</label>
+      <div style="font-size:13px;padding:6px 0;color:var(--text2)">${a.desc}</div>
+    </div>
+    <div style="background:var(--bg2);border-radius:var(--r);padding:10px 12px;margin-bottom:12px;font-size:12px;line-height:1.8;color:var(--text2)">
+      <b style="color:var(--text)">Equipo:</b> ${a.equipo||'—'} &nbsp;|&nbsp;
+      <b style="color:var(--text)">ID:</b> ${a.actId||'—'}
+    </div>
+    <div class="g2" style="margin-bottom:8px">
+      <div class="fg">
+        <label>Fecha programada</label>
+        <input id="ef-fecha" type="date" value="${a.fecha||''}">
+      </div>
+      <div class="fg">
+        <label>Técnico asignado</label>
+        <select id="ef-tec">${tecOpts||'<option value="">— sin técnicos —</option>'}</select>
+      </div>
+    </div>
+    <div class="g2" style="margin-bottom:8px">
+      <div class="fg">
+        <label>Edificio</label>
+        <input id="ef-edificio" type="text" value="${a.edificio||''}">
+      </div>
+      <div class="fg">
+        <label>Nivel</label>
+        <input id="ef-nivel" type="text" value="${a.nivel||''}">
+      </div>
+    </div>
+    <div class="g2" style="margin-bottom:8px">
+      <div class="fg">
+        <label>Área</label>
+        <input id="ef-area" type="text" value="${a.area||''}">
+      </div>
+      <div class="fg">
+        <label>Tipo</label>
+        <select id="ef-tipo">
+          <option${a.tipo==='Mecánico'?' selected':''}>Mecánico</option>
+          <option${a.tipo==='Eléctrico'?' selected':''}>Eléctrico</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg" style="margin-bottom:14px">
+      <label>Estado</label>
+      <select id="ef-est">
+        <option${a.est==='Pendiente'?' selected':''}>Pendiente</option>
+        <option${a.est==='En progreso'?' selected':''}>En progreso</option>
+        <option${a.est==='Completada'?' selected':''}>Completada</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btnP" style="flex:1" onclick="saveActEdit(${id})">Guardar cambios</button>
+      <button class="btn btnD btnSm" onclick="elimAct(${id})">Eliminar</button>
+    </div>`;
+  document.getElementById('editModal').classList.add('on');
+}
+
+function closeEdit(){
+  document.getElementById('editModal').classList.remove('on');
+}
+
+// ═══ INCIDENCIAS ═══════════════════════════════════════
+function addInc(){
+  const desc=document.getElementById('i-desc').value.trim();
+  const fecha=document.getElementById('i-fecha').value;
+  const orig=document.getElementById('i-orig').value.trim();
+  if(!desc||!fecha||!orig){alert('Completa origen, descripción y fecha');return}
+  const db=getDB();const md=getMD(db,mak());
+  md.incs.push({id:md.nI++,orig,area:document.getElementById('i-area').value.trim(),fecha,desc,tipo:document.getElementById('i-tipo').value,est:'Pendiente',tec:'',fechaProg:''});
+  saveDB(db);
+  ['i-desc','i-orig','i-area'].forEach(id=>document.getElementById(id).value='');
+  rInc();rPanel();
+}
+function progInc(id){
+  const db=getDB();const md=getMD(db,mak());
+  const inc=md.incs.find(i=>i.id===id);if(!inc)return;
+  const tec=document.getElementById('itec-'+id)?.value||'';
+  const fecha=document.getElementById('ifec-'+id)?.value||'';
+  if(!fecha){alert('Selecciona fecha');return}
+  md.acts.push({id:md.nA++,actId:'INC-'+id,desc:inc.desc,equipo:'',edificio:'',nivel:'',area:inc.area,tipo:inc.tipo==='Ambos'?'Mecánico':inc.tipo,fecha,tec,est:'Pendiente'});
+  inc.est='Programada';inc.tec=tec;inc.fechaProg=fecha;
+  saveDB(db);rInc();rPanel();rProg();
+}
+function doneInc(id){
+  const db=getDB();const md=getMD(db,mak());
+  const inc=md.incs.find(i=>i.id===id);
+  if(inc){inc.est='Realizada';saveDB(db);rInc();rPanel()}
+}
+function delInc(id){
+  const db=getDB();const md=getMD(db,mak());
+  md.incs=md.incs.filter(i=>i.id!==id);saveDB(db);rInc();rPanel();
+}
+
+// ═══ GUARDIAS ══════════════════════════════════════════
+function getSems(y,m){
+  const sems=[];
+  let lu=new Date(y,m,1);
+  const dw=lu.getDay();lu.setDate(lu.getDate()-(dw===0?6:dw-1));
+  for(let i=0;i<6;i++){
+    const ini=new Date(lu),fin=new Date(lu);fin.setDate(fin.getDate()+6);
+    if(ini.getMonth()>m&&i>0)break;
+    if(fin>=new Date(y,m,1))sems.push({ini,fin});
+    lu.setDate(lu.getDate()+7);
+  }
+  return sems;
+}
+function fd(d){return `${d.getDate()}/${d.getMonth()+1}`}
+function getGM(db){
+  const k=mak();if(!db.guard[k])db.guard[k]={};return db.guard[k];
+}
+function toggleG(nom,i){
+  const db=getDB();const gm=getGM(db);
+  if(!gm[nom])gm[nom]=[];
+  const cur=gm[nom][i];
+  gm[nom][i]=cur==='grd'?'vac':cur==='vac'?null:'grd';
+  saveDB(db);rGuard();
+}
+
+// ═══ RENDERS ═══════════════════════════════════════════
+function rPanel(){
+  const db=getDB();const md=getMD(db,mak());
+  const acts=md.acts,incs=md.incs;
+  document.getElementById('m-comp').textContent=acts.filter(a=>a.est==='Completada').length;
+  document.getElementById('m-prog').textContent=acts.filter(a=>a.est==='En progreso').length;
+  document.getElementById('m-pend').textContent=acts.filter(a=>a.est==='Pendiente').length;
+
+  let ntf='';
+  const ip=incs.filter(i=>i.est==='Pendiente').length;
+  if(ip>0)ntf+=`<div class="ntf ntfW">${ip} incidencia(s) sin programar.</div>`;
+  document.getElementById('p-notifs').innerHTML=ntf;
+
+  const amap={};
+  acts.forEach(a=>{const k=a.area||'Sin área';if(!amap[k])amap[k]={t:0,c:0};amap[k].t++;if(a.est==='Completada')amap[k].c++});
+  const tot=acts.length||1;
+  const topA=Object.entries(amap).sort((a,b)=>b[1].t-a[1].t).slice(0,5);
+  document.getElementById('p-areas').innerHTML=topA.length===0?`<div class="empty">Sin actividades</div>`:topA.map(([a,v])=>`
+    <div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;font-size:12px">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">${a}</span>
+        <span style="color:var(--text2);flex-shrink:0;margin-left:4px">${v.c}/${v.t}</span>
+      </div>
+      <div class="pb"><div class="pf" style="width:${Math.round(v.t/tot*100)}%;background:var(--G)"></div></div>
+    </div>`).join('');
+
+  document.getElementById('p-incs').innerHTML=incs.length===0?`<div class="empty">Sin incidencias</div>`:incs.slice(0,4).map(i=>{
+    const c=i.est==='Realizada'?'bG':i.est==='Programada'?'bB':'bA';
+    return `<div class="ri" style="padding:7px 0">
+      <div style="flex:1;overflow:hidden">
+        <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.desc}</div>
+        <div style="font-size:11px;color:var(--text2)">${i.orig} → ${i.area||'—'}</div>
+      </div>
+      <span class="bdg ${c}" style="flex-shrink:0;margin-left:6px">${i.est}</span>
+    </div>`;
+  }).join('');
+
+  const prox=acts.filter(a=>a.est!=='Completada').slice(0,6);
+  document.getElementById('p-prox').innerHTML=prox.length===0?`<div class="empty">Sin pendientes</div>`:
+    `<table><thead><tr><th>ID</th><th>Descripción</th><th>Técnico</th><th>Fecha</th><th>Estado</th></tr></thead>
+    <tbody>${prox.map(a=>`<tr class="trk" onclick="sw('prog');setTimeout(()=>openEdit(${a.id}),100)">
+      <td>${a.actId||'—'}</td><td title="${a.desc}">${a.desc}</td>
+      <td>${a.tec||'—'}</td><td>${a.fecha||'Sin fecha'}</td>
+      <td>${estB(a.est)}</td></tr>`).join('')}</tbody></table>`;
+}
+
+function rProg(){
+  syncTec();
+  const db=getDB();const md=getMD(db,mak());
+  const y=MES.y,m=MES.m,days=new Date(y,m+1,0).getDate();
+  let dow=new Date(y,m,1).getDay();dow=dow===0?6:dow-1;
+  document.getElementById('cal-hd').innerHTML=['L','M','X','J','V','S','D'].map(d=>`<div style="text-align:center;font-size:10px;color:var(--text2);font-weight:700">${d}</div>`).join('');
+  let ch='';
+  for(let i=0;i<dow;i++)ch+=`<div class="cc" style="opacity:.15"></div>`;
+  for(let d=1;d<=days;d++){
+    const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const da=md.acts.filter(a=>a.fecha===ds);
+    const dots=da.map(a=>`<span class="dot" style="background:${a.tipo==='Mecánico'?'var(--G)':'var(--B)'}" title="${a.desc}"></span>`).join('');
+    const isH=HOY.getFullYear()===y&&HOY.getMonth()===m&&HOY.getDate()===d;
+    ch+=`<div class="cc" style="${isH?'border:1.5px solid var(--G)':''}"><div class="dn" style="${isH?'color:var(--G)':''}">${d}</div>${dots}</div>`;
+  }
+  document.getElementById('cal').innerHTML=ch;
+
+  document.getElementById('act-list').innerHTML=md.acts.length===0
+    ?`<div class="empty">Sin actividades. Importa desde Easy Maint o agrégalas manualmente.</div>`
+    :`<table><thead><tr><th>ID</th><th>Descripción</th><th>Equipo</th><th>Edificio</th><th>Nivel</th><th>Área</th><th>Técnico</th><th>Fecha</th><th>Estado</th></tr></thead>
+    <tbody>${md.acts.map(a=>`<tr class="trk" onclick="openEdit(${a.id})">
+      <td>${a.actId||'—'}</td>
+      <td title="${a.desc}">${a.desc}</td>
+      <td>${a.equipo||'—'}</td>
+      <td>${a.edificio||'—'}</td>
+      <td>${a.nivel||'—'}</td>
+      <td>${a.area||'—'}</td>
+      <td style="color:${a.tec?'var(--text)':'var(--Rtxt)'}">${a.tec||'⚠ Sin asignar'}</td>
+      <td style="color:${a.fecha?'var(--text)':'var(--Rtxt)'}">${a.fecha||'⚠ Sin fecha'}</td>
+      <td>${estB(a.est)}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+function rPersonal(){
+  const db=getDB();const md=getMD(db,mak());
+  const axt={};
+  md.acts.forEach(a=>{if(!axt[a.tec])axt[a.tec]={t:0,c:0};axt[a.tec].t++;if(a.est==='Completada')axt[a.tec].c++});
+  document.getElementById('tec-list').innerHTML=db.tecs.length===0
+    ?`<div class="empty">Sin técnicos registrados.</div>`
+    :db.tecs.map(t=>{
+      const ac=axt[t.nom]||{t:0,c:0};
+      const pct=ac.t?Math.round(ac.c/ac.t*100):0;
+      const eM=t.esp==='Mecánico';
+      return `<div class="ri">
+        <div class="av" style="background:${eM?'var(--Gbg)':'var(--Bbg)'};color:${eM?'var(--Gtxt)':'var(--Btxt)'}">${t.nom.charAt(0).toUpperCase()}</div>
+        <div style="flex:1;overflow:hidden">
+          <div style="font-size:13px;font-weight:700">${t.nom} <span class="bdg ${eM?'bG':'bB'}" style="margin-left:4px">${t.esp}</span></div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">${ac.t} actividades · ${ac.c} completadas</div>
+          <div class="pb" style="max-width:140px"><div class="pf" style="width:${pct}%;background:${eM?'var(--G)':'var(--B)'}"></div></div>
+        </div>
+        <button class="btnXs" onclick="delTec(${t.id})">Quitar</button>
+      </div>`;
+    }).join('');
+}
+
+function rInc(){
+  const db=getDB();const md=getMD(db,mak());
+  const el=document.getElementById('inc-list');
+  if(md.incs.length===0){el.innerHTML=`<div class="empty">Sin incidencias este mes.</div>`;return}
+  const tecOpts=db.tecs.map(t=>`<option value="${t.nom}">${t.nom}</option>`).join('');
+  const hoyStr=hoy();
+  el.innerHTML=md.incs.map(i=>{
+    const bc=i.est==='Realizada'?'var(--G)':i.est==='Programada'?'var(--B)':'var(--A)';
+    const bCls=i.est==='Realizada'?'bG':i.est==='Programada'?'bB':'bA';
+    return `<div class="icard ${i.est==='Programada'?'ip':i.est==='Realizada'?'ir':''}" style="border-left-color:${bc}">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">${i.desc}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">${i.orig} → ${i.area||'—'} · ${i.fecha} · ${i.tipo}</div>
+        </div>
+        <span class="bdg ${bCls}" style="flex-shrink:0">${i.est}</span>
+      </div>
+      ${i.est==='Pendiente'?`
+        <div class="g2" style="gap:8px;margin-top:8px">
+          <div class="fg"><label>Asignar a</label><select id="itec-${i.id}">${tecOpts||'<option value="">—</option>'}</select></div>
+          <div class="fg"><label>Fecha</label><input type="date" id="ifec-${i.id}" value="${hoyStr}"></div>
+        </div>
+        <button class="btn btnP btnSm" style="margin-top:8px;width:100%" onclick="progInc(${i.id})">Agregar a programación</button>`
+      :i.est==='Programada'?`<div style="font-size:11px;color:var(--Btxt);margin-top:4px">Asignada a: <b>${i.tec}</b> · Fecha: ${i.fechaProg}
+        <button class="btnXs" style="margin-left:8px" onclick="doneInc(${i.id})">Marcar realizada</button></div>`
+      :`<div style="font-size:11px;color:var(--Gtxt);margin-top:4px">Realizada · Técnico: <b>${i.tec}</b></div>`}
+      <div style="text-align:right;margin-top:8px">
+        <button class="btnXs" style="color:var(--Rtxt)" onclick="delInc(${i.id})">Eliminar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function rGuard(){
+  const db=getDB();const sems=getSems(MES.y,MES.m);const gm=getGM(db);
+  document.getElementById('g-hdr').innerHTML=
+    `<div style="font-size:11px;color:var(--text2);font-weight:700">Técnico</div>`+
+    sems.map((s,i)=>`<div class="sh">Sem ${i+1}<br><span style="font-weight:400">${fd(s.ini)}–${fd(s.fin)}</span></div>`).join('');
+  document.getElementById('g-grid').innerHTML=db.tecs.length===0
+    ?`<div class="empty">Agrega técnicos en Personal.</div>`
+    :db.tecs.map(t=>{
+      const tg=gm[t.nom]||[];
+      return `<div class="gr"><div class="gtc" title="${t.nom}">${t.nom}</div>`+
+        sems.map((_,i)=>{
+          const v=tg[i]||null;
+          const cls=v==='grd'?'gc2 grd':v==='vac'?'gc2 vac':'gc2';
+          const lbl=v==='grd'?'Guardia':v==='vac'?'Vacaciones':'—';
+          return `<div class="${cls}" onclick="toggleG('${t.nom.replace(/'/g,"\\'")}',${i})">${lbl}</div>`;
+        }).join('')+'</div>';
+    }).join('');
+  saveDB(db);
+}
+
+// ═══ HELPERS ═══════════════════════════════════════════
+function estB(e){const m={Completada:'bG',Pendiente:'b0','En progreso':'bA'};return `<span class="bdg ${m[e]||'b0'}">${e}</span>`}
+
+// ═══ DATOS EJEMPLO ═════════════════════════════════════
+function cargarEjemplo(){
+  const db=getDB();
+  if(db.tecs.length>0)return;
+  db.tecs=[
+    {id:1,nom:'Ramírez, J.',esp:'Mecánico'},
+    {id:2,nom:'Flores, M.',esp:'Mecánico'},
+    {id:3,nom:'Cruz, A.',esp:'Eléctrico'},
+    {id:4,nom:'López, E.',esp:'Eléctrico'},
+  ];
+  const y=HOY.getFullYear(),m=HOY.getMonth();
+  const k=mesKey(y,m);const p=n=>String(n).padStart(2,'0');
+  db.meses[k]={
+    acts:[
+      {id:1,actId:'OT-001',desc:'Lubricación rodamientos molino 1',equipo:'Molino 1',edificio:'Nave A',nivel:'Planta baja',area:'Molienda',tipo:'Mecánico',fecha:`${y}-${p(m+1)}-21`,tec:'Ramírez, J.',est:'Pendiente'},
+      {id:2,actId:'OT-002',desc:'Revisión tablero eléctrico TG-02',equipo:'Tablero TG-02',edificio:'Nave B',nivel:'Mezzanine',area:'Control',tipo:'Eléctrico',fecha:`${y}-${p(m+1)}-22`,tec:'López, E.',est:'Pendiente'},
+      {id:3,actId:'OT-003',desc:'Cambio correas de transmisión',equipo:'Molino 3',edificio:'Nave A',nivel:'Planta alta',area:'Molienda',tipo:'Mecánico',fecha:`${y}-${p(m+1)}-23`,tec:'Flores, M.',est:'En progreso'},
+      {id:4,actId:'OT-004',desc:'Calibración sensores de nivel',equipo:'Silo S-04',edificio:'Almacén',nivel:'Planta baja',area:'Almacenamiento',tipo:'Eléctrico',fecha:'',tec:'Cruz, A.',est:'Pendiente'},
+      {id:5,actId:'OT-005',desc:'Revisión variadores frecuencia',equipo:'VFD-05',edificio:'Nave B',nivel:'Planta baja',area:'Control',tipo:'Eléctrico',fecha:`${y}-${p(m+1)}-16`,tec:'Cruz, A.',est:'Completada'},
+    ],
+    incs:[{id:1,orig:'Producción',area:'Molienda',fecha:`${y}-${p(m+1)}-17`,desc:'Ruido anormal en rodamiento molino 2',tipo:'Mecánico',est:'Pendiente',tec:'',fechaProg:''}],
+    nA:6,nI:2
+  };
+  db.guard[k]={
+    'Ramírez, J.':['grd',null,null,null,null],
+    'Flores, M.':[null,'grd',null,null,null],
+    'Cruz, A.':[null,null,'grd',null,null],
+    'López, E.':[null,null,null,'grd',null],
+  };
+  saveDB(db);
+}
+
+// ═══ INIT ══════════════════════════════════════════════
+cargarEjemplo();
+regNav();
+document.getElementById('mesLbl').textContent=`${MESES[MES.m]} ${MES.y}`;
+document.getElementById('a-fecha').value=hoy();
+document.getElementById('i-fecha').value=hoy();
+syncTec();
+rPanel();
+</script>
+</body>
+</html>
