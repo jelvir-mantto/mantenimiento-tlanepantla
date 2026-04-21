@@ -445,25 +445,36 @@ function curUser(){return gS()?.username||''}
 function mk(y,m){return `${y}-${String(m+1).padStart(2,'0')}`}
 function mak(){return mk(MES.y,MES.m)}
 // ─── FIREBASE DB CACHE ───
-let _fbCache = null;
-let _fbRef   = null;
-let _fbReady = false;
+let _fbCache   = null;   // in-memory cache, always authoritative for THIS session
+let _fbRef     = null;   // Firebase Realtime Database reference
+let _fbReady   = false;  // true once Firebase has loaded data at least once
+let _myWrite   = false;  // true while WE are writing — prevents listener echo overwrite
+let _myWriteTimer = null;
 
 function ldb(){
-  // Return in-memory cache (populated by Firebase listener)
+  // Always return a deep copy of the in-memory cache
   if(_fbCache) return JSON.parse(JSON.stringify(_fbCache));
-  // Fallback: localStorage while Firebase loads
-  try{return JSON.parse(localStorage.getItem('mant_v8')||'{}')}catch{return {}}
+  // Fallback to localStorage while Firebase is still loading
+  try{ return JSON.parse(localStorage.getItem('mant_v8')||'{}') }catch{ return {} }
 }
 function svdb(db){
-  // Always keep local copy as backup
-  localStorage.setItem('mant_v8',JSON.stringify(db));
-  // Write to Firebase
+  // 1. Update in-memory cache FIRST — this is what all renders will read
+  _fbCache = JSON.parse(JSON.stringify(db));
+  // 2. Persist locally as backup
+  localStorage.setItem('mant_v8', JSON.stringify(db));
+  // 3. Write to Firebase (async) — mark _myWrite so the listener echo is ignored
   if(_fbRef){
-    _fbCache = JSON.parse(JSON.stringify(db)); // update cache immediately (no flicker)
-    _fbRef.set(db).catch(e=>console.error('Firebase write error:',e));
-  } else {
-    _fbCache = JSON.parse(JSON.stringify(db));
+    _myWrite = true;
+    clearTimeout(_myWriteTimer);
+    _fbRef.set(db)
+      .then(()=>{
+        // Clear flag after a short delay to allow the listener echo to pass
+        _myWriteTimer = setTimeout(()=>{ _myWrite=false; }, 1500);
+      })
+      .catch(e=>{
+        console.error('Firebase write error:', e);
+        _myWrite = false;
+      });
   }
 }
 function gdb(){
@@ -1177,20 +1188,145 @@ function rechazar(id){
 
 // ═══ IMPORT XLSX ═══
 function importFile(input){
-  if(!isAdm())return;const file=input.files[0];if(!file)return;
-  const st=document.getElementById('impSt');st.style.color='var(--text2)';st.textContent='Leyendo...';
-  const proc=(rows)=>{
-    const db=gdb();const md=gmd(db,mak());let n=0;const t0=db.tecs[0]?.nom||'';
-    rows.forEach(row=>{const actId=String(row[0]||'').trim();const desc=String(row[1]||'').trim();if(!actId&&!desc)return;
-      md.acts.push({id:md.nA++,actId,desc:desc||'Sin descripción',equipo:String(row[3]||'').trim(),
-        edificio:String(row[37]||'').trim(),nivel:String(row[38]||'').trim(),area:String(row[39]||'').trim(),
-        tipo:'Mecánico',paro:'',fecha:'',tec:t0,est:'Pendiente',comments:[],locked:false});n++});
-    svdb(db);st.style.color='var(--Gtxt)';st.textContent=`✓ ${n} actividades importadas. Toca cada fila para asignar técnico y fecha.`;
-    rProg();rPanel();input.value='';
+  if(!isAdm())return;
+  const file=input.files[0];if(!file)return;
+  const st=document.getElementById('impSt');
+  st.style.color='var(--text2)';st.textContent='Leyendo archivo...';
+
+  // ── Process rows array into activities ──────────────────────────────────
+  function proc(rows){
+    if(!rows||rows.length===0){
+      st.style.color='var(--Rtxt)';
+      st.textContent='El archivo está vacío o no tiene filas de datos.';
+      return;
+    }
+    // Skip first row if it looks like a header (non-numeric first cell)
+    let dataRows=rows;
+    if(rows.length>0){
+      const firstCell=String(rows[0][0]||'').trim().toLowerCase();
+      const isHeader=isNaN(firstCell)||firstCell===''&&String(rows[0][1]||'').toLowerCase().includes('desc');
+      if(isHeader) dataRows=rows.slice(1);
+    }
+
+    const db=gdb();
+    const md=gmd(db,mak());
+    if(!md.nA)md.nA=1;
+    const t0=db.tecs[0]?.nom||'';
+    let n=0;
+
+    dataRows.forEach(function(row){
+      const actId=String(row[0]||'').trim();
+      const desc=String(row[1]||'').trim();
+      if(!actId&&!desc)return; // skip empty rows
+
+      // Columns: A=0,B=1,C=2,D=3 ... AL=37,AM=38,AN=39
+      const act={
+        id: Date.now()+'_'+n+'_'+Math.random().toString(36).slice(2,7),
+        actId:   actId,
+        desc:    desc||'Sin descripción',
+        equipo:  String(row[3]  ||'').trim(),
+        edificio:String(row[37] ||'').trim(),
+        nivel:   String(row[38] ||'').trim(),
+        area:    String(row[39] ||'').trim(),
+        tipo:    'Mecánico',
+        paro:    '',
+        fecha:   '',
+        tec:     t0,
+        est:     'Pendiente',
+        comments:[],
+        locked:  false
+      };
+      md.acts.push(act);
+      n++;
+    });
+
+    if(n===0){
+      st.style.color='var(--Rtxt)';
+      st.textContent='No se encontraron actividades. Revisa que el archivo tenga datos en las columnas A y B.';
+      return;
+    }
+
+    svdb(db);
+    st.style.color='var(--Gtxt)';
+    st.textContent='✓ '+n+' actividades importadas correctamente. Toca cada fila para asignar técnico y fecha.';
+    rProg();rPanel();
+    input.value='';
+  }
+
+  // ── CSV handler ─────────────────────────────────────────────────────────
+  function handleCSV(text){
+    // Remove BOM if present
+    text=text.replace(/^\uFEFF/,'');
+    // Split lines (handle \r\n and \n)
+    const lines=text.split(/\r?\n/).filter(function(l){return l.trim()!=='';});
+    if(lines.length===0){st.style.color='var(--Rtxt)';st.textContent='CSV vacío.';return;}
+
+    // Auto-detect separator: comma, semicolon or tab
+    const sample=lines[0];
+    let sep=',';
+    const semis=(sample.match(/;/g)||[]).length;
+    const commas=(sample.match(/,/g)||[]).length;
+    const tabs=(sample.match(/\t/g)||[]).length;
+    if(semis>commas&&semis>tabs)sep=';';
+    else if(tabs>commas&&tabs>semis)sep='\t';
+
+    // Parse each line respecting quoted fields
+    function parseLine(line){
+      const result=[];let cur='';let inQ=false;
+      for(let i=0;i<line.length;i++){
+        const ch=line[i];
+        if(ch==='"'){inQ=!inQ;}
+        else if(ch===sep&&!inQ){result.push(cur.trim());cur='';}
+        else{cur+=ch;}
+      }
+      result.push(cur.trim());
+      return result;
+    }
+
+    const rows=lines.map(parseLine);
+    proc(rows);
+  }
+
+  // ── Route by file type ───────────────────────────────────────────────────
+  const name=file.name.toLowerCase();
+
+  if(name.endsWith('.csv')||name.endsWith('.txt')){
+    const reader=new FileReader();
+    reader.onerror=function(){st.style.color='var(--Rtxt)';st.textContent='Error al leer el archivo CSV.';};
+    reader.onload=function(e){
+      try{handleCSV(e.target.result);}
+      catch(err){st.style.color='var(--Rtxt)';st.textContent='Error CSV: '+err.message;console.error(err);}
+    };
+    // Try UTF-8 first, Latin-1 as fallback
+    reader.readAsText(file,'UTF-8');
+    return;
+  }
+
+  // XLSX / XLS
+  if(typeof XLSX==='undefined'){
+    st.style.color='var(--Rtxt)';
+    st.textContent='Librería XLSX no disponible. Guarda el archivo como CSV desde Excel e inténtalo de nuevo.';
+    return;
+  }
+
+  const reader=new FileReader();
+  reader.onerror=function(){st.style.color='var(--Rtxt)';st.textContent='Error al leer el archivo Excel.';};
+  reader.onload=function(e){
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array',cellText:true,cellDates:false});
+      if(!wb||!wb.SheetNames||wb.SheetNames.length===0){
+        st.style.color='var(--Rtxt)';st.textContent='El archivo Excel no tiene hojas de cálculo.';return;
+      }
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
+      proc(rows);
+    }catch(err){
+      console.error('XLSX parse error:',err);
+      st.style.color='var(--Rtxt)';
+      st.textContent='Error al leer Excel: '+err.message+'. Intenta guardarlo como CSV.';
+    }
   };
-  if(file.name.toLowerCase().endsWith('.csv')){const r=new FileReader();r.onload=e=>{proc(e.target.result.split('\n').filter(l=>l.trim()).slice(1).map(l=>l.split(',').map(x=>x.replace(/^"|"$/g,'').trim())))};r.readAsText(file);return}
-  if(typeof XLSX==='undefined'){st.style.color='var(--Rtxt)';st.textContent='Sin conexión XLSX.';return}
-  const r=new FileReader();r.onload=e=>{try{const wb=XLSX.read(e.target.result,{type:'array'});proc(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''}).slice(1))}catch(err){st.style.color='var(--Rtxt)';st.textContent='Error al leer.';input.value=''}};r.readAsArrayBuffer(file);
+  reader.readAsArrayBuffer(file);
 }
 
 // ═══ EXPORT / IMPORT ═══
@@ -1287,54 +1423,87 @@ function initFirebase(){
     firebase.initializeApp(FB_CONFIG);
     _fbRef = firebase.database().ref('mant_v8');
 
-    // Real-time listener: fires whenever data changes on ANY device
-    _fbRef.on('value', snap => {
+    // ── REAL-TIME LISTENER ────────────────────────────────────────────────
+    // This fires: (a) on first load, and (b) when ANOTHER device writes data.
+    // It should NOT overwrite _fbCache if WE just wrote (_myWrite flag).
+    _fbRef.on('value', function(snap){
+
+      if(_myWrite){
+        // This is the echo of our own write — ignore it, we already updated _fbCache locally
+        if(!_fbReady){ _fbReady=true; hideFbLoading(); }
+        return;
+      }
+
       const data = snap.val();
+
+      if(!_fbReady){
+        // ── FIRST LOAD ──────────────────────────────────────────────────
+        if(data){
+          // Firebase has data — use it
+          _fbCache = data;
+          localStorage.setItem('mant_v8', JSON.stringify(data));
+        } else {
+          // Firebase is empty — seed with localStorage data or blank
+          const local = localStorage.getItem('mant_v8');
+          if(local){
+            try{
+              _fbCache = JSON.parse(local);
+              _fbRef.set(_fbCache); // push local data up to Firebase
+            }catch(e){ _fbCache = {}; }
+          } else {
+            _fbCache = {};
+          }
+        }
+        _fbReady = true;
+        hideFbLoading();
+        // If session exists and app not yet running, init it
+        if(gS() && !document.getElementById('appScreen').style.display.includes('block')){
+          try{ initApp(); }catch(e){}
+        }
+        return;
+      }
+
+      // ── SUBSEQUENT UPDATES (from other devices) ───────────────────────
       if(data){
         _fbCache = data;
-        // Also sync to localStorage as backup
         localStorage.setItem('mant_v8', JSON.stringify(data));
-      } else {
-        // Firebase empty — push local data up
-        const local = localStorage.getItem('mant_v8');
-        if(local){
-          const parsed = JSON.parse(local);
-          _fbCache = parsed;
-          _fbRef.set(parsed);
-        } else {
-          _fbCache = {tecs:[],guard:{},meses:{},users:[],pending:[],notifs:[],msgs:[]};
+        // Refresh UI to show other device's changes
+        if(gS()){
+          updateBadges();
+          const renders={panel:rPanel,prog:rProg,personal:rPersonal,incidencias:rInc,
+            guardias:rGuard,usuarios:rUsuarios,stats:rStats,notificaciones:rNotifs,mensajes:rMsgs};
+          if(renders[TAB]) try{ renders[TAB](); }catch(e){}
         }
       }
-      _fbReady = true;
-      hideFbLoading();
 
-      // If user is already logged in, refresh current panel
-      if(gS()){
-        updateBadges();
-        const renders={panel:rPanel,prog:rProg,personal:rPersonal,incidencias:rInc,
-          guardias:rGuard,usuarios:rUsuarios,stats:rStats,notificaciones:rNotifs,mensajes:rMsgs};
-        if(renders[TAB]) try{renders[TAB]()}catch(e){}
+    }, function(err){
+      // ── ERROR / OFFLINE ───────────────────────────────────────────────
+      console.error('Firebase error:', err);
+      if(!_fbReady){
+        const local = localStorage.getItem('mant_v8');
+        try{ _fbCache = local ? JSON.parse(local) : {}; }catch(e){ _fbCache={}; }
+        _fbReady = true;
+        hideFbLoading();
+        if(gS()){ try{ initApp(); }catch(e){} }
       }
-    }, err => {
-      console.error('Firebase listener error:', err);
-      // Fallback: use localStorage
-      const local = localStorage.getItem('mant_v8');
-      _fbCache = local ? JSON.parse(local) : null;
-      _fbReady = true;
-      hideFbLoading();
     });
 
-    // Timeout fallback: if Firebase takes >6s, proceed with localStorage
-    setTimeout(()=>{
+    // ── TIMEOUT FALLBACK ─────────────────────────────────────────────────
+    setTimeout(function(){
       if(!_fbReady){
-        console.warn('Firebase timeout, using localStorage');
+        console.warn('Firebase timeout — using localStorage fallback');
+        const local = localStorage.getItem('mant_v8');
+        try{ _fbCache = local ? JSON.parse(local) : {}; }catch(e){ _fbCache={}; }
         _fbReady = true;
         hideFbLoading();
       }
-    }, 6000);
+    }, 7000);
 
-  } catch(e){
-    console.error('Firebase init error:', e);
+  }catch(e){
+    console.error('Firebase init failed:', e);
+    const local = localStorage.getItem('mant_v8');
+    try{ _fbCache = local ? JSON.parse(local) : {}; }catch(ex){ _fbCache={}; }
+    _fbReady = true;
     hideFbLoading();
   }
 }
