@@ -10,14 +10,14 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
-  --bg:#212124;--bg2:#2c2c30;--bg3:#16161a;
-  --text:#f0f0f2;--text2:#90909a;--text3:#505058;
-  --brd:rgba(255,255,255,0.08);--brd2:rgba(255,255,255,0.16);
-  --G:#1D9E75;--Gbg:#0a3328;--Gtxt:#5DCAA5;
-  --A:#BA7517;--Abg:#2e1f00;--Atxt:#FAC775;
-  --R:#E24B4A;--Rbg:#2e0a0a;--Rtxt:#F09595;
-  --B:#185FA5;--Bbg:#051e3a;--Btxt:#85B7EB;
-  --P:#534AB7;--Pbg:#1a1840;--Ptxt:#AFA9EC;
+  --bg:#ffffff;--bg2:#f7f7f5;--bg3:#efefec;
+  --text:#111111;--text2:#666666;--text3:#aaaaaa;
+  --brd:rgba(0,0,0,0.11);--brd2:rgba(0,0,0,0.22);
+  --G:#1D9E75;--Gbg:#E1F5EE;--Gtxt:#085041;
+  --A:#BA7517;--Abg:#FAEEDA;--Atxt:#633806;
+  --R:#E24B4A;--Rbg:#FCEBEB;--Rtxt:#791F1F;
+  --B:#185FA5;--Bbg:#E6F1FB;--Btxt:#0C447C;
+  --P:#534AB7;--Pbg:#EEEDFE;--Ptxt:#3C3489;
   --r:8px;--rl:12px;
 }
 html{-webkit-text-size-adjust:100%}
@@ -177,7 +177,7 @@ tr:last-child td{border-bottom:none}
 .contact-item:active{opacity:.7}
 
 /* MODAL */
-.moverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;align-items:flex-end;justify-content:center}
+.moverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:flex-end;justify-content:center}
 .moverlay.on{display:flex}
 .modal{background:var(--bg);border-radius:20px 20px 0 0;padding:18px 15px 32px;width:100%;max-width:540px;max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;position:relative;border:0.5px solid var(--brd)}
 @media(min-width:600px){.moverlay{align-items:center}.modal{border-radius:var(--rl);max-height:82vh;padding-bottom:20px}}
@@ -213,7 +213,7 @@ tr:last-child td{border-bottom:none}
   .pnl{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 68px)}
 }
 
-.fb-loading{position:fixed;inset:0;background:var(--bg3);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+.fb-loading{position:fixed;inset:0;background:#f8f8f6;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
 .fb-spinner{width:32px;height:32px;border:3px solid var(--brd2);border-top-color:var(--G);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .fb-loading p{font-size:13px;color:var(--text2)}
@@ -477,17 +477,53 @@ function svdb(db){
       });
   }
 }
+// Firebase stores arrays as objects {0:{...},1:{...}} — convert back to arrays
+function toArr(val){
+  if(!val) return [];
+  if(Array.isArray(val)) return val;
+  // Firebase object-array: keys are numeric strings
+  return Object.keys(val).sort((a,b)=>Number(a)-Number(b)).map(k=>val[k]).filter(Boolean);
+}
+
 function gdb(){
   const db=ldb();
-  if(!db.tecs)db.tecs=[];if(!db.guard)db.guard={};if(!db.meses)db.meses={};
-  if(!db.users)db.users=[];if(!db.pending)db.pending=[];
-  if(!db.notifs)db.notifs=[];if(!db.msgs)db.msgs=[];
-  const lim=new Date(HOY.getFullYear(),HOY.getMonth()-5,1);
-  const limk=mk(lim.getFullYear(),lim.getMonth());
-  Object.keys(db.meses).forEach(k=>{if(k<limk)delete db.meses[k]});
+  // ── Normalize ALL arrays Firebase may have converted to objects ──────────
+  if(!db.tecs)    db.tecs=[];    else db.tecs=toArr(db.tecs);
+  if(!db.guard)   db.guard={};
+  if(!db.meses)   db.meses={};
+  if(!db.users)   db.users=[];   else db.users=toArr(db.users);
+  if(!db.pending) db.pending=[]; else db.pending=toArr(db.pending);
+  if(!db.notifs)  db.notifs=[];  else db.notifs=toArr(db.notifs);
+  if(!db.msgs)    db.msgs=[];    else db.msgs=toArr(db.msgs);
+  // ── Critically: normalize acts/incs inside EVERY month ──────────────────
+  // Firebase converts arrays to {0:{},1:{}} objects — fix them all here
+  // so every function that calls gdb() gets real arrays, not objects
+  Object.keys(db.meses).forEach(function(k){
+    var md=db.meses[k];
+    if(!md) return;
+    md.acts = toArr(md.acts);
+    md.incs = toArr(md.incs);
+    // Also normalize comments inside each activity
+    md.acts.forEach(function(a){ if(a && a.comments) a.comments=toArr(a.comments); });
+    md.incs.forEach(function(i){ if(i && i.comments) i.comments=toArr(i.comments); });
+  });
+  // Purge months older than 6 months
+  var lim=new Date(HOY.getFullYear(),HOY.getMonth()-5,1);
+  var limk=mk(lim.getFullYear(),lim.getMonth());
+  Object.keys(db.meses).forEach(function(k){ if(k<limk) delete db.meses[k]; });
   return db;
 }
-function gmd(db,key){if(!db.meses[key])db.meses[key]={acts:[],incs:[],nA:1,nI:1};return db.meses[key]}
+
+function gmd(db,key){
+  if(!db.meses[key]) db.meses[key]={acts:[],incs:[],nA:1,nI:1};
+  var md=db.meses[key];
+  // gdb() already normalized arrays; ensure defaults exist
+  if(!md.acts) md.acts=[];
+  if(!md.incs) md.incs=[];
+  if(!md.nA)   md.nA=(md.acts.length||0)+1;
+  if(!md.nI)   md.nI=(md.incs.length||0)+1;
+  return md;
+}
 function hoyS(){return `${HOY.getFullYear()}-${String(HOY.getMonth()+1).padStart(2,'0')}-${String(HOY.getDate()).padStart(2,'0')}`}
 function fmtD(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function getSem(){const h=new Date();const dow=h.getDay()===0?6:h.getDay()-1;const lu=new Date(h);lu.setDate(h.getDate()-dow);return Array.from({length:7},(_,i)=>{const d=new Date(lu);d.setDate(lu.getDate()+i);return d})}
@@ -598,7 +634,7 @@ function initApp(){
   const h=HOY.getHours();
   const sal=h<12?'Buenos días':h<18?'Buenas tardes':'Buenas noches';
   document.getElementById('hdrGreet').textContent=`${sal}, ${nom.split(',')[0].trim()}`;
-  if(admin)document.getElementById('hdrTitle').innerHTML='Mantenimiento · Tlanepantla <span class="atag">ADMIN</span> <span id="syncIndicator" style="font-size:9px;color:var(--Gtxt)">● sincronizado</span>';
+  if(admin)document.getElementById('hdrTitle').innerHTML='Mantenimiento · Tlanepantla <span class="atag">ADMIN</span>';
   document.getElementById('mesLbl').textContent=`${MESES[MES.m]} ${MES.y}`;
   document.getElementById('a-fecha').value=hoyS();document.getElementById('i-fecha').value=hoyS();
   document.getElementById('import-card').style.display=admin?'':'none';
@@ -668,8 +704,8 @@ function rPanel(){
       ${db.pending.map(p=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--brd)">
         <div style="flex:1;overflow:hidden"><div style="font-size:12px;font-weight:700">${p.tipo==='act'?'Actividad':'Incidencia'}: ${p.data.desc}</div>
         <div style="font-size:11px;color:var(--text2)">Por: ${p.nom} · ${p.fecha}</div></div>
-        <button class="btn btnP btnSm" onclick="aprobar(${p.id})">Aprobar</button>
-        <button class="btn btnD btnSm" onclick="rechazar(${p.id})">Rechazar</button>
+        <button class="btn btnP btnSm" onclick="aprobar('${p.id}')">Aprobar</button>
+        <button class="btn btnD btnSm" onclick="rechazar('${p.id}')">Rechazar</button>
       </div>`).join('')}
     </div>`;
   } else pendEl.innerHTML='';
@@ -756,15 +792,15 @@ function openDayModal(ds){
         <span class="bdg ${est==='Completada'||est==='Realizada'?'bG':est==='En progreso'?'bA':'b0'}">${est}</span>
       </div>
       ${canChg?`<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-        <select style="flex:1;font-size:12px;padding:4px 7px;min-width:100px;background:var(--bg2)" onchange="cambEst(${a.id},'${a._s}',this.value,this)">
+        <select style="flex:1;font-size:12px;padding:4px 7px;min-width:100px;background:var(--bg2)" onchange="cambEst('${a.id}','${a._s}',this.value,this)">
           ${(['Pendiente','En progreso','Completada',isInc?'Realizada':null]).filter(Boolean).map(s=>`<option${est===s?' selected':''}>${s}</option>`).join('')}
         </select>
-        ${isAdm()?`<button class="btnXs" onclick="openEditModal(${a.id},'${a._s}')">Editar</button>`:''}
+        ${isAdm()?`<button class="btnXs" onclick="openEditModal('${a.id}','${a._s}')">Editar</button>`:''}
       </div>`:''}
       ${a.comments&&a.comments.length>0?`<div style="margin-top:7px">${a.comments.map(c=>`<div class="cmt"><span class="cmt-who">${c.nom}</span><span class="cmt-d">${c.fecha}</span><br>${c.txt}</div>`).join('')}</div>`:''}
       ${canE?`<div style="display:flex;gap:5px;margin-top:7px">
         <input type="text" id="cmt-${a._s}-${a.id}" placeholder="Agregar comentario..." style="flex:1;font-size:12px;padding:5px 8px;background:var(--bg2)">
-        <button class="btnXs" onclick="addCmt(${a.id},'${a._s}',document.getElementById('cmt-${a._s}-${a.id}').value)">Enviar</button>
+        <button class="btnXs" onclick="addCmt('${a.id}','${a._s}',document.getElementById('cmt-${a._s}-${a.id}').value)">Enviar</button>
       </div>`:''}
       ${isInc&&a.foto?`<img src="${a.foto||''}" class="foto-prev">`:''}`
     ;html+='</div>';
@@ -775,7 +811,7 @@ function openDayModal(ds){
     if(sf.length>0)html+=`<div style="margin-top:10px"><div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px">PROGRAMAR ACTIVIDAD PARA ESTE DÍA</div>
       ${sf.map(a=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:0.5px solid var(--brd)">
         <div style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.actId?`<b>${a.actId}</b> `:''} ${a.desc}</div>
-        <button class="btn btnP btnSm" onclick="progActDia(${a.id},'${ds}')">+ Fecha</button>
+        <button class="btn btnP btnSm" onclick="progActDia('${a.id}','${ds}')">+ Fecha</button>
       </div>`).join('')}
     </div>`;
   }
@@ -786,7 +822,7 @@ function openDayModal(ds){
 function cambEst(id,src,val,sel){
   const db=gdb();let found=null;
   Object.values(db.meses).forEach(md=>{
-    const arr=src==='act'?md.acts:md.incs;const a=arr&&arr.find(x=>x.id===id);
+    const arr=src==='act'?md.acts:md.incs;const a=arr&&arr.find(x=>String(x.id)===String(id));
     if(a)found=a;
   });
   if(!found)return;
@@ -805,7 +841,7 @@ function addCmt(id,src,txt){
   if(!txt||!txt.trim())return;
   const db=gdb();let found=null,foundMes=null;
   Object.values(db.meses).forEach(md=>{
-    const arr=src==='act'?md.acts:md.incs;const a=arr&&arr.find(x=>x.id===id);
+    const arr=src==='act'?md.acts:md.incs;const a=arr&&arr.find(x=>String(x.id)===String(id));
     if(a){found=a;foundMes=md;}
   });
   if(!found)return;
@@ -828,7 +864,7 @@ function addCmt(id,src,txt){
 }
 
 function progActDia(id,ds){
-  const db=gdb();const md=gmd(db,mak());const a=md.acts.find(x=>x.id===id);
+  const db=gdb();const md=gmd(db,mak());const a=md.acts.find(x=>String(x.id)===String(id));
   if(a){a.fecha=ds;}svdb(db);rProg();rPanel();closeModal();
 }
 
@@ -836,7 +872,7 @@ function progActDia(id,ds){
 function openEditModal(id,src){
   closeModal();
   const db=gdb();let a=null;
-  Object.values(db.meses).forEach(md=>{const arr=src==='act'?md.acts:md.incs;const f=arr&&arr.find(x=>x.id===id);if(f)a=f});
+  Object.values(db.meses).forEach(md=>{const arr=src==='act'?md.acts:md.incs;const f=arr&&arr.find(x=>String(x.id)===String(id));if(f)a=f});
   if(!a)return;
   const tOpts=db.tecs.map(t=>`<option value="${t.nom}"${t.nom===a.tec?' selected':''}>${t.nom}</option>`).join('');
   document.getElementById('gModalTitle').textContent='Editar actividad';
@@ -866,15 +902,15 @@ function openEditModal(id,src){
     </select></div>
     <div class="fg" style="margin-bottom:12px"><label>Comentario</label><textarea id="ea-cmt" placeholder="Agrega comentario opcional..." style="min-height:50px"></textarea></div>
     <div style="display:flex;gap:8px">
-      <button class="btn btnP" style="flex:1" onclick="saveEdit(${id},'${src}')">Guardar</button>
-      <button class="btn btnD btnSm" onclick="elimAct(${id},'${src}')">Eliminar</button>
+      <button class="btn btnP" style="flex:1" onclick="saveEdit('${id}','${src}')">Guardar</button>
+      <button class="btn btnD btnSm" onclick="elimAct('${id}','${src}')">Eliminar</button>
     </div>`;
   openModal();
 }
 
 function saveEdit(id,src){
   const db=gdb();let a=null;
-  Object.values(db.meses).forEach(md=>{const arr=src==='act'?md.acts:md.incs;const f=arr&&arr.find(x=>x.id===id);if(f)a=f});
+  Object.values(db.meses).forEach(md=>{const arr=src==='act'?md.acts:md.incs;const f=arr&&arr.find(x=>String(x.id)===String(id));if(f)a=f});
   if(!a)return;
   const prevTec=a.tec;
   a.actId=document.getElementById('ea-id').value.trim();
@@ -902,7 +938,7 @@ function saveEdit(id,src){
 function elimAct(id,src){
   if(!isAdm())return;
   if(!confirm('¿Eliminar esta actividad?'))return;
-  const db=gdb();Object.values(db.meses).forEach(md=>{if(src==='act')md.acts=(md.acts||[]).filter(a=>a.id!==id);else md.incs=(md.incs||[]).filter(i=>i.id!==id)});
+  const db=gdb();Object.values(db.meses).forEach(md=>{if(src==='act')md.acts=(md.acts||[]).filter(a=>String(a.id)!==String(id));else md.incs=(md.incs||[]).filter(i=>String(i.id)!==String(id))});
   svdb(db);closeModal();rProg();rPanel();rInc();
 }
 
@@ -931,13 +967,13 @@ function rProg(){
   document.getElementById('act-list').innerHTML=filtered.length===0
     ?`<div class="empty">Sin actividades${_paroFilt?' con ese filtro':''}.</div>`
     :`<table><thead><tr><th>ID</th><th>Descripción</th><th>Técnico</th><th>Fecha</th><th>Estado</th><th>Paro prog.</th>${isAdm()?'<th></th>':''}</tr></thead>
-    <tbody>${filtered.map(a=>`<tr class="trk" onclick="openEditModal(${a.id},'act')">
+    <tbody>${filtered.map(a=>`<tr class="trk" onclick="openEditModal('${a.id}','act')">
       <td>${a.actId||'—'}</td><td title="${a.desc}">${a.desc}</td>
       <td style="color:${a.tec?'var(--text)':'var(--Rtxt)'}">${a.tec||'⚠ Sin asignar'}</td>
       <td style="color:${a.fecha?'var(--text)':'var(--Rtxt)'}">${a.fecha||'⚠ Sin fecha'}</td>
       <td>${estB(a.est)}${a.locked?' 🔒':''}</td>
       <td>${paroTag(a.paro)}</td>
-      ${isAdm()?`<td><button class="btnXs" style="color:var(--Rtxt)" onclick="event.stopPropagation();elimAct(${a.id},'act')">✕</button></td>`:''}
+      ${isAdm()?`<td><button class="btnXs" style="color:var(--Rtxt)" onclick="event.stopPropagation();elimAct('${a.id}','act')">✕</button></td>`:''}
     </tr>`).join('')}</tbody></table>`;
 }
 
@@ -963,26 +999,26 @@ function rInc(){
         <span class="bdg ${bCls}">${i.est}</span>
       </div>
       ${i.foto?`<img src="${i.foto}" class="foto-prev">`:''}
-      ${canAct&&!locked&&i.est==='Pendiente'?`<button class="btn btnSm w100" style="margin-top:7px;background:var(--Bbg);color:var(--Btxt);border:1px solid var(--B)" onclick="incEst(${i.id},'En progreso')">Iniciar trabajo</button>`:''}
-      ${canAct&&!locked&&i.est==='En progreso'?`<button class="btn btnP btnSm w100" style="margin-top:7px" onclick="incEst(${i.id},'Realizada')">Marcar como realizada</button>`:''}
+      ${canAct&&!locked&&i.est==='Pendiente'?`<button class="btn btnSm w100" style="margin-top:7px;background:var(--Bbg);color:var(--Btxt);border:1px solid var(--B)" onclick="incEst('${i.id}','En progreso')">Iniciar trabajo</button>`:''}
+      ${canAct&&!locked&&i.est==='En progreso'?`<button class="btn btnP btnSm w100" style="margin-top:7px" onclick="incEst('${i.id}','Realizada')">Marcar como realizada</button>`:''}
       ${isAdm()&&(i.est==='Pendiente'||!i.fechaProg)?`
         <div class="g2" style="margin-top:7px">
           <div class="fg"><label style="font-size:10px">Técnico</label><select id="itec-${i.id}" style="font-size:12px;padding:5px 8px">${db.tecs.map(t=>`<option value="${t.nom}"${t.nom===i.tecAsig?' selected':''}>${t.nom}</option>`).join('')}</select></div>
           <div class="fg"><label style="font-size:10px">Fecha prog.</label><input type="date" id="ifec-${i.id}" value="${i.fechaProg||hoyS()}" style="font-size:12px;padding:5px 8px"></div>
         </div>
-        <button class="btn btnP btnSm w100" style="margin-top:6px" onclick="asignarInc(${i.id})">Programar</button>`:''}
+        <button class="btn btnP btnSm w100" style="margin-top:6px" onclick="asignarInc('${i.id}')">Programar</button>`:''}
       ${i.comments&&i.comments.length>0?`<div style="margin-top:7px">${i.comments.map(c=>`<div class="cmt"><span class="cmt-who">${c.nom}</span> <span class="cmt-d">${c.fecha}</span><br>${c.txt}</div>`).join('')}</div>`:''}
       ${canAct?`<div style="display:flex;gap:5px;margin-top:7px">
         <input type="text" id="cmt-inc-${i.id}" placeholder="Comentario..." style="flex:1;font-size:12px;padding:5px 8px;background:var(--bg2)">
         <button class="btnXs" onclick="addCmt(${i.id},'inc',document.getElementById('cmt-inc-${i.id}').value)">Enviar</button>
       </div>`:''}
-      ${isAdm()?`<div style="text-align:right;margin-top:6px"><button class="btnXs" style="color:var(--Rtxt)" onclick="elimAct(${i.id},'inc')">Eliminar</button></div>`:''}
+      ${isAdm()?`<div style="text-align:right;margin-top:6px"><button class="btnXs" style="color:var(--Rtxt)" onclick="elimAct('${i.id}','inc')">Eliminar</button></div>`:''}
     </div>`;
   }).join('');
 }
 
 function incEst(id,val){
-  const db=gdb();const md=gmd(db,mak());const i=md.incs.find(x=>x.id===id);
+  const db=gdb();const md=gmd(db,mak());const i=md.incs.find(x=>String(x.id)===String(id));
   if(!i)return;
   if(i.locked&&!isAdm()){alert('Solo el administrador puede reabrir incidencias cerradas.');return}
   const prev=i.est;i.est=val;
@@ -993,7 +1029,7 @@ function incEst(id,val){
 }
 
 function asignarInc(id){
-  const db=gdb();const md=gmd(db,mak());const i=md.incs.find(x=>x.id===id);
+  const db=gdb();const md=gmd(db,mak());const i=md.incs.find(x=>String(x.id)===String(id));
   if(!i)return;
   i.tecAsig=document.getElementById('itec-'+id)?.value||'';
   i.fechaProg=document.getElementById('ifec-'+id)?.value||'';
@@ -1047,7 +1083,7 @@ function rPersonal(){
           <div style="font-size:11px;color:var(--text2)">${ac.t} activ. · ${ac.c} compl. · ${pct}%</div>
           <div class="pb" style="max-width:120px"><div class="pf" style="width:${pct}%;background:${eM?'var(--G)':'var(--B)'}"></div></div>
         </div>
-        <button class="btnXs" onclick="delTec(${t.id})">Quitar</button>
+        <button class="btnXs" onclick="delTec('${t.id}')">Quitar</button>
       </div>`;
     }).join('');
 }
@@ -1062,7 +1098,7 @@ function rUsuarios(){
       <div class="av" style="background:${u.role==='admin'?'var(--Pbg)':'var(--Gbg)'};color:${u.role==='admin'?'var(--Ptxt)':'var(--Gtxt)'}">${u.nom.charAt(0)}</div>
       <div style="flex:1;overflow:hidden"><div style="font-size:13px;font-weight:700">${u.nom}</div>
         <div style="font-size:11px;color:var(--text2)">@${u.username} · ${u.role==='admin'?'Admin':'Técnico'} · 🔑 ${u.password}</div></div>
-      ${u.username!=='admin'?`<button class="btnXs" onclick="delUser(${u.id})">Quitar</button>`:''}
+      ${u.username!=='admin'?`<button class="btnXs" onclick="delUser('${u.id}')">Quitar</button>`:''}
     </div>`).join('');
 }
 
@@ -1091,9 +1127,9 @@ function renderChart(key){
       {label:'Pendientes',data:tecs.map(t=>md.acts.filter(a=>a.tec===t.nom&&a.est==='Pendiente').length),backgroundColor:'#185FA5',borderRadius:4},
     ]},
     options:{animation:false,responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom',labels:{font:{size:10},color:'#9898a0',padding:8}}},
-      scales:{x:{stacked:true,grid:{display:false,color:'rgba(255,255,255,0.05)'},ticks:{color:'#9898a0',font:{size:10}}},
-              y:{stacked:true,beginAtZero:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#9898a0',stepSize:1,font:{size:10}}}}}
+      plugins:{legend:{position:'bottom',labels:{font:{size:10},color:'#475569',padding:8}}},
+      scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#475569',font:{size:10}}},
+              y:{stacked:true,beginAtZero:true,grid:{color:'rgba(0,0,0,0.06)'},ticks:{color:'#475569',stepSize:1,font:{size:10}}}}}
   });
   document.getElementById('stat-detail').innerHTML=tecs.map(t=>{
     const my=md.acts.filter(a=>a.tec===t.nom);const c=my.filter(a=>a.est==='Completada').length;const tot=my.length;const pct=tot?Math.round(c/tot*100):0;const eM=t.esp==='Mecánico';
@@ -1158,7 +1194,7 @@ function addTec(){
   db.tecs.push({id:Date.now(),nom,esp:document.getElementById('t-esp').value});
   svdb(db);document.getElementById('t-nom').value='';rPersonal();syncTec();syncTecInc();
 }
-function delTec(id){if(!confirm('¿Quitar técnico?'))return;const db=gdb();db.tecs=db.tecs.filter(t=>t.id!==id);svdb(db);rPersonal();syncTec();syncTecInc()}
+function delTec(id){if(!confirm('¿Quitar técnico?'))return;const db=gdb();db.tecs=db.tecs.filter(t=>String(t.id)!==String(id));svdb(db);rPersonal();syncTec();syncTecInc()}
 function addUser(){
   const nom=document.getElementById('u-tec').value;const rol=document.getElementById('u-rol').value;
   const user=document.getElementById('u-user').value.trim().toLowerCase();const pass=document.getElementById('u-pass').value;
@@ -1167,10 +1203,10 @@ function addUser(){
   db.users.push({id:Date.now(),username:user,password:pass,role:rol,nom});
   svdb(db);['u-user','u-pass'].forEach(id=>document.getElementById(id).value='');rUsuarios();
 }
-function delUser(id){if(!confirm('¿Eliminar usuario?'))return;const db=gdb();db.users=db.users.filter(u=>u.id!==id);svdb(db);rUsuarios()}
+function delUser(id){if(!confirm('¿Eliminar usuario?'))return;const db=gdb();db.users=db.users.filter(u=>String(u.id)!==String(id));svdb(db);rUsuarios()}
 
 function aprobar(id){
-  const db=gdb();const p=db.pending.find(x=>x.id===id);
+  const db=gdb();const p=db.pending.find(x=>String(x.id)===String(id));
   if(p){const md=gmd(db,mak());if(p.tipo==='act'){md.acts.push(p.data)}else{md.incs.push(p.data)}
     // Notify requester
     const ru=db.users.find(u=>u.nom===p.nom);
@@ -1179,7 +1215,7 @@ function aprobar(id){
   db.pending=db.pending.filter(x=>x.id!==id);svdb(db);rPanel();rProg();rInc();
 }
 function rechazar(id){
-  const db=gdb();const p=db.pending.find(x=>x.id===id);
+  const db=gdb();const p=db.pending.find(x=>String(x.id)===String(id));
   if(p){const ru=db.users.find(u=>u.nom===p.nom);
     if(ru)crearNotif(ru.username,'Administrador',`❌ Tu solicitud fue rechazada: "${p.data.desc?.slice(0,50)}"`,null);
   }
