@@ -825,15 +825,15 @@ function openDayModal(ds){
         <input type="text" id="cmt-${a._s}-${a.id}" placeholder="Agregar comentario..." style="flex:1;font-size:12px;padding:5px 8px;background:var(--bg2)">
         <button class="btnXs" onclick="addCmt('${a.id}','${a._s}',document.getElementById('cmt-${a._s}-${a.id}').value)">Enviar</button>
       </div>`:''}
-      ${(isInc?(a.fotos&&a.fotos.length?a.fotos:[a.foto]).filter(Boolean).map(f=>`<img src="${f}" class="foto-prev" onclick="window.open('${f}','_blank')">`).join(''):'')}
-    ;html+='</div>';
+      ${isInc?renderFotos(a.fotos,a.foto):''}
+    </div>`;
   });
   // Sin fecha (admin only)
   if(isAdm()){
     const sf=md.acts.filter(a=>!a.fecha).slice(0,8);
     if(sf.length>0)html+=`<div style="margin-top:10px"><div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px">PROGRAMAR ACTIVIDAD PARA ESTE DÍA</div>
       ${sf.map(a=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:0.5px solid var(--brd)">
-        <div style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.actId?`<b>${a.actId}</b> `:''} ${a.desc}</div>
+        <div style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.actId?('<b>'+a.actId+'</b> '):''} ${a.desc}</div>
         <button class="btn btnP btnSm" onclick="progActDia('${a.id}','${ds}')">+ Fecha</button>
       </div>`).join('')}
     </div>`;
@@ -1021,7 +1021,7 @@ function rInc(){
         </div>
         <span class="bdg ${bCls}">${i.est}</span>
       </div>
-      ${(i.fotos&&i.fotos.length?i.fotos:[i.foto]).filter(Boolean).map(f=>`<img src="${f}" class="foto-prev" onclick="window.open('${f}','_blank')">`).join('')}
+      ${renderFotos(i.fotos,i.foto)}
       ${canAct&&!locked&&i.est==='Pendiente'?`<button class="btn btnSm w100" style="margin-top:7px;background:var(--Bbg);color:var(--Btxt);border:1px solid var(--B)" onclick="incEst('${i.id}','En progreso')">Iniciar trabajo</button>`:''}
       ${canAct&&!locked&&i.est==='En progreso'?`<button class="btn btnP btnSm w100" style="margin-top:7px" onclick="incEst('${i.id}','Realizada')">Marcar como realizada</button>`:''}
       ${isAdm()&&(i.est==='Pendiente'||!i.fechaProg)?`
@@ -1445,7 +1445,14 @@ function importConfig(code){
 function estB(e){const m={Completada:'bG',Pendiente:'b0','En progreso':'bA',Realizada:'bG'};return `<span class="bdg ${m[e]||'b0'}">${e}</span>`}
 function syncTec(){const tecs=gdb().tecs;const el=document.getElementById('a-tec');if(!el)return;el.innerHTML=tecs.length===0?'<option value="">— sin técnicos —</option>':tecs.map(t=>`<option value="${t.nom}">${t.nom} (${t.esp})</option>`).join('')}
 function syncTecInc(){const tecs=gdb().tecs;const el=document.getElementById('i-tec-asig');if(!el)return;el.innerHTML=`<option value="">— Sin asignar —</option>`+tecs.map(t=>`<option value="${t.nom}">${t.nom}</option>`).join('')}
-function openModal(){document.getElementById('gModal').classList.add('on')}
+function openModal(){
+  document.getElementById('gModal').classList.add('on');
+}
+document.getElementById('gModalBody').addEventListener('click',function(e){
+  if(e.target.classList.contains('foto-click')){
+    window.open(e.target.src,'_blank');
+  }
+});
 function closeModal(){document.getElementById('gModal').classList.remove('on')}
 
 // ═══ DATOS EJEMPLO ═══
@@ -1541,6 +1548,14 @@ function rTerminado(){
       <thead><tr><th>ID</th><th>Descripción</th><th>Equipo</th><th>Técnico</th><th>Fecha</th><th>Estado</th><th>Paro</th>${isAdm()?'<th></th>':''}</tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
+  }).join('');
+}
+
+// ─── PHOTO HELPERS ───────────────────────────────────────────────────────
+function renderFotos(fotosArr,fotoSingle){
+  var list=(fotosArr&&fotosArr.length)?fotosArr:[fotoSingle];
+  return list.filter(Boolean).map(function(f){
+    return '<img src="'+f+'" class="foto-prev foto-click">';
   }).join('');
 }
 
