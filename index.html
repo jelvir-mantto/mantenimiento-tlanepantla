@@ -198,7 +198,8 @@ tr:last-child td{border-bottom:none}
 /* MISC TAGS */
 .atag{background:var(--Pbg);color:var(--Ptxt);font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px}
 .lckbdg{font-size:9px;padding:1px 5px;border-radius:4px;background:var(--bg2);color:var(--text2);margin-left:5px}
-.foto-prev{width:100%;max-height:180px;object-fit:cover;border-radius:var(--r);margin-top:6px}
+.foto-prev{width:100%;max-height:180px;object-fit:cover;border-radius:var(--r);margin-top:6px;cursor:pointer}
+.mes-sep{background:var(--bg2);border-radius:var(--r);padding:7px 12px;margin:10px 0 5px;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em}
 
 /* BOTTOM NAV */
 .bnav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:100;background:var(--bg);border-top:0.5px solid var(--brd);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -219,6 +220,11 @@ tr:last-child td{border-bottom:none}
 .fb-loading p{font-size:13px;color:var(--text2)}
 .fb-loading h3{font-size:15px;font-weight:700;color:var(--Gtxt)}
 
+.sel-bar{display:none;align-items:center;gap:10px;padding:8px 10px;background:var(--Rbg);border-radius:var(--r);margin-bottom:8px;font-size:13px;font-weight:600;color:var(--Rtxt)}
+.sel-bar.on{display:flex}
+tr.selected td{background:#FEF2F2!important}
+.chk-col{width:32px!important;text-align:center!important}
+.mes-sep{background:var(--bg2);border-radius:var(--r);padding:7px 12px;margin:10px 0 5px;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em}
 </style>
 </head>
 <body>
@@ -307,6 +313,11 @@ tr:last-child td{border-bottom:none}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div class="ct" style="margin-bottom:0">Todas las actividades <span id="act-count" style="font-weight:400;text-transform:none;letter-spacing:0"></span></div>
     </div>
+    <div class="sel-bar" id="sel-bar">
+      <span id="sel-count">0 seleccionadas</span>
+      <button class="btn btnD btnSm" onclick="elimSeleccionadas()">🗑 Eliminar seleccionadas</button>
+      <button class="btnXs" onclick="clearSel()">Cancelar</button>
+    </div>
     <div class="filter-bar" id="paro-filter">
       <div class="chip on" data-paro="">Todos</div>
       <div class="chip" data-paro="Molino A">Molino A</div>
@@ -333,7 +344,9 @@ tr:last-child td{border-bottom:none}
     </div>
     <div class="g2" style="margin-bottom:7px"><div class="fg"><label>Tipo trabajo</label><select id="i-tipo"><option>Mecánico</option><option>Eléctrico</option><option>Ambos</option></select></div><div class="fg"><label>Técnico asignado</label><select id="i-tec-asig"><option value="">— Sin asignar —</option></select></div></div>
     <div class="fg" style="margin-bottom:7px"><label>Descripción / Comentarios</label><textarea id="i-desc" placeholder="Describe el problema..."></textarea></div>
-    <div class="fg" style="margin-bottom:9px"><label>Fotografía (opcional)</label><input type="file" id="i-foto" accept="image/*" capture="environment"><img id="i-foto-prev" class="foto-prev" style="display:none"></div>
+    <div class="fg" style="margin-bottom:9px"><label>Fotografía (opcional)</label><input type="file" id="i-foto" accept="image/*" multiple>
+      <div id="i-foto-prev-wrap" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
+      <div style="font-size:11px;color:var(--text2);margin-top:3px">Puedes seleccionar varias fotos. Las imágenes se comprimen automáticamente.</div></div>
     <button class="btn btnP w100" id="btnAddInc">Registrar incidencia</button>
   </div>
   <div class="card"><div class="ct">Incidencias del mes</div><div id="inc-list"></div></div>
@@ -373,6 +386,14 @@ tr:last-child td{border-bottom:none}
 </div>
 
 <!-- PERSONAL (admin) -->
+<div class="pnl" id="pnl-terminado">
+  <div class="card">
+    <div class="ct">Actividades completadas</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Historial de actividades marcadas como <b>Completadas</b>, organizadas por mes.</p>
+    <div id="terminado-list"></div>
+  </div>
+</div>
+
 <div class="pnl" id="pnl-personal">
   <div class="card">
     <div class="ct">Registrar técnico</div>
@@ -653,6 +674,7 @@ function initApp(){
 function buildNav(admin){
   const adminTabs=[
     {id:'panel',lbl:'Panel',ico:'⊞'},{id:'prog',lbl:'Prog.',ico:'📅'},
+    {id:'terminado',lbl:'Terminado',ico:'✅'},
     {id:'incidencias',lbl:'Incid.',ico:'⚠'},{id:'notificaciones',lbl:'Avisos',ico:'🔔'},
     {id:'mensajes',lbl:'Msajes',ico:'💬'},{id:'guardias',lbl:'Guardias',ico:'🔒'},
     {id:'personal',lbl:'Personal',ico:'👥'},{id:'usuarios',lbl:'Usuarios',ico:'👤'},
@@ -660,6 +682,7 @@ function buildNav(admin){
   ];
   const tecTabs=[
     {id:'panel',lbl:'Panel',ico:'⊞'},{id:'prog',lbl:'Prog.',ico:'📅'},
+    {id:'terminado',lbl:'Terminado',ico:'✅'},
     {id:'incidencias',lbl:'Incid.',ico:'⚠'},{id:'guardias',lbl:'Guardias',ico:'🔒'},
     {id:'notificaciones',lbl:'Avisos',ico:'🔔'},{id:'mensajes',lbl:'Msajes',ico:'💬'},
   ];
@@ -678,7 +701,7 @@ function sw(t){
   document.querySelectorAll('.tab,.bi').forEach(el=>el.classList.toggle('on',el.dataset.tab===t));
   document.querySelectorAll('.pnl').forEach(el=>el.classList.toggle('on',el.id==='pnl-'+t));
   window.scrollTo({top:0,behavior:'instant'});
-  ({panel:rPanel,prog:rProg,personal:rPersonal,incidencias:rInc,guardias:rGuard,usuarios:rUsuarios,stats:rStats,notificaciones:rNotifs,mensajes:rMsgs}[t]||function(){})();
+  ({panel:rPanel,prog:rProg,terminado:rTerminado,personal:rPersonal,incidencias:rInc,guardias:rGuard,usuarios:rUsuarios,stats:rStats,notificaciones:rNotifs,mensajes:rMsgs}[t]||function(){})();
   syncTec();syncTecInc();
 }
 
@@ -802,7 +825,7 @@ function openDayModal(ds){
         <input type="text" id="cmt-${a._s}-${a.id}" placeholder="Agregar comentario..." style="flex:1;font-size:12px;padding:5px 8px;background:var(--bg2)">
         <button class="btnXs" onclick="addCmt('${a.id}','${a._s}',document.getElementById('cmt-${a._s}-${a.id}').value)">Enviar</button>
       </div>`:''}
-      ${isInc&&a.foto?`<img src="${a.foto||''}" class="foto-prev">`:''}`
+      ${(isInc?(a.fotos&&a.fotos.length?a.fotos:[a.foto]).filter(Boolean).map(f=>`<img src="${f}" class="foto-prev" onclick="window.open('${f}','_blank')">`).join(''):'')}
     ;html+='</div>';
   });
   // Sin fecha (admin only)
@@ -961,13 +984,13 @@ function rProg(){
     ch+=`<div class="cc" style="${isH?'border:1.5px solid var(--G)':''}" onclick="openDayModal('${ds}')"><div class="dn" style="${isH?'color:var(--G)':''}">${d}</div>${dots}</div>`;
   }
   document.getElementById('cal').innerHTML=ch;
-  const filtered=_paroFilt?md.acts.filter(a=>a.paro===_paroFilt):md.acts;
+  const filtered=((_paroFilt?md.acts.filter(a=>a.paro===_paroFilt):md.acts)).filter(a=>a.est!=='Completada');
   document.getElementById('act-count').textContent=`(${filtered.length}/${md.acts.length})`;
   function paroTag(p){if(!p||p==='No necesario')return '<span style="font-size:10px;color:var(--text3)">—</span>';const isMol=p.startsWith('Molino');return `<span class="paro-tag${isMol?' molino':p==='Almacén'?' alm':''}">${p}</span>`}
-  document.getElementById('act-list').innerHTML=filtered.length===0
-    ?`<div class="empty">Sin actividades${_paroFilt?' con ese filtro':''}.</div>`
-    :`<table><thead><tr><th>ID</th><th>Descripción</th><th>Técnico</th><th>Fecha</th><th>Estado</th><th>Paro prog.</th>${isAdm()?'<th></th>':''}</tr></thead>
-    <tbody>${filtered.map(a=>`<tr class="trk" onclick="openEditModal('${a.id}','act')">
+  document.getElementById('act-list').innerHTML=filtered.length===0?`<div class="empty">Sin actividades${_paroFilt?' con ese filtro':''}.</div>`
+    :`<table><thead><tr>${isAdm()?'<th class="chk-col"><input type="checkbox" id="chk-all" onchange="toggleAllSel(this)"></th>':''}<th>ID</th><th>Descripción</th><th>Técnico</th><th>Fecha</th><th>Estado</th><th>Paro prog.</th>${isAdm()?'<th></th>':''}</tr></thead>
+    <tbody>${filtered.map(a=>`<tr class="trk" id="row-${a.id}" onclick="rowClick(event,'${a.id}')">
+      ${isAdm()?`<td class="chk-col" onclick="event.stopPropagation()"><input type="checkbox" class="act-chk" data-id="${a.id}" onchange="updateSel()"></td>`:''}
       <td>${a.actId||'—'}</td><td title="${a.desc}">${a.desc}</td>
       <td style="color:${a.tec?'var(--text)':'var(--Rtxt)'}">${a.tec||'⚠ Sin asignar'}</td>
       <td style="color:${a.fecha?'var(--text)':'var(--Rtxt)'}">${a.fecha||'⚠ Sin fecha'}</td>
@@ -998,7 +1021,7 @@ function rInc(){
         </div>
         <span class="bdg ${bCls}">${i.est}</span>
       </div>
-      ${i.foto?`<img src="${i.foto}" class="foto-prev">`:''}
+      ${(i.fotos&&i.fotos.length?i.fotos:[i.foto]).filter(Boolean).map(f=>`<img src="${f}" class="foto-prev" onclick="window.open('${f}','_blank')">`).join('')}
       ${canAct&&!locked&&i.est==='Pendiente'?`<button class="btn btnSm w100" style="margin-top:7px;background:var(--Bbg);color:var(--Btxt);border:1px solid var(--B)" onclick="incEst('${i.id}','En progreso')">Iniciar trabajo</button>`:''}
       ${canAct&&!locked&&i.est==='En progreso'?`<button class="btn btnP btnSm w100" style="margin-top:7px" onclick="incEst('${i.id}','Realizada')">Marcar como realizada</button>`:''}
       ${isAdm()&&(i.est==='Pendiente'||!i.fechaProg)?`
@@ -1172,8 +1195,8 @@ function addInc(){
     tipo:document.getElementById('i-tipo').value,tecAsig:document.getElementById('i-tec-asig').value,
     fecha,desc,est:'Pendiente',locked:false,comments:[],foto:null,fechaProg:''};
   const db=gdb();
-  const proceed=(foto)=>{
-    obj.foto=foto||null;
+  const proceed=(fotos)=>{
+    obj.fotos=fotos&&fotos.length?fotos:null;obj.foto=obj.fotos?obj.fotos[0]:null;
     if(isAdm()){const md=gmd(db,mak());obj.id=md.nI++;md.incs.push(obj);svdb(db);rInc();rPanel();rProg();
       if(obj.tecAsig){const nu=db.users.find(u=>u.nom===obj.tecAsig);if(nu)crearNotif(nu.username,'Administrador',`⚠️ Incidencia asignada: "${obj.desc.slice(0,50)}"`,obj.id)}
     } else {
@@ -1184,8 +1207,42 @@ function addInc(){
     document.getElementById('i-foto').value='';document.getElementById('i-foto-prev').style.display='none';
   };
   const fotoInp=document.getElementById('i-foto');
-  if(fotoInp.files[0]){const r=new FileReader();r.onload=e=>{const b64=e.target.result;if(b64.length>2000000){alert('Foto muy grande (max ~1.5MB)');proceed(null);return}proceed(b64)};r.readAsDataURL(fotoInp.files[0])}
-  else proceed(null);
+  const files=[...fotoInp.files];
+  if(!files.length){proceed([]);return;}
+  // Compress and convert all selected images
+  const fotos=[];
+  let done=0;
+  files.forEach(function(file){
+    compressImage(file,function(b64){
+      fotos.push(b64);
+      done++;
+      if(done===files.length) proceed(fotos);
+    });
+  });
+}
+
+// Compress image using Canvas (supports iPhone HEIC via browser conversion)
+function compressImage(file,cb){
+  const MAX_PX=1200; // resize to max 1200px on longest side
+  const QUALITY=0.75;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const img=new Image();
+    img.onload=function(){
+      let w=img.width,h=img.height;
+      if(w>MAX_PX||h>MAX_PX){
+        if(w>h){h=Math.round(h*MAX_PX/w);w=MAX_PX;}
+        else{w=Math.round(w*MAX_PX/h);h=MAX_PX;}
+      }
+      const canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      cb(canvas.toDataURL('image/jpeg',QUALITY));
+    };
+    img.onerror=function(){cb(e.target.result);} // fallback: use original
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 
 function addTec(){
@@ -1427,7 +1484,19 @@ document.getElementById('btnAddInc').addEventListener('click',addInc);
 document.getElementById('btnAddUser').addEventListener('click',addUser);
 document.getElementById('dropzone').addEventListener('click',()=>isAdm()&&document.getElementById('fileIn').click());
 document.getElementById('fileIn').addEventListener('change',function(){importFile(this)});
-document.getElementById('i-foto').addEventListener('change',function(){const f=this.files[0];const prev=document.getElementById('i-foto-prev');if(f){const r=new FileReader();r.onload=e=>{prev.src=e.target.result;prev.style.display='block'};r.readAsDataURL(f)}else prev.style.display='none'});
+document.getElementById('i-foto').addEventListener('change',function(){
+  const wrap=document.getElementById('i-foto-prev-wrap');
+  if(!wrap)return;
+  wrap.innerHTML='';
+  [...this.files].forEach(file=>{
+    compressImage(file,function(b64){
+      const img=document.createElement('img');
+      img.src=b64;img.style.cssText='width:80px;height:60px;object-fit:cover;border-radius:6px;cursor:pointer';
+      img.onclick=()=>window.open(b64,'_blank');
+      wrap.appendChild(img);
+    });
+  });
+});
 document.getElementById('btnNotifBell').addEventListener('click',()=>sw('notificaciones'));
 document.getElementById('btnMsgBell').addEventListener('click',()=>sw('mensajes'));
 document.getElementById('showImport').addEventListener('click',()=>{const a=document.getElementById('importArea');a.style.display=a.style.display==='none'?'block':'none'});
@@ -1437,6 +1506,91 @@ document.getElementById('btnMarkAllRead').addEventListener('click',()=>{const db
 // ═══ INIT ═══
 cargarEjemplo();
 if(gS())initApp();
+
+// ─── TERMINADO ────────────────────────────────────────────────────────────
+function rTerminado(){
+  const db=gdb();
+  // Gather all completed acts across all months, grouped by month key
+  const byMonth={};
+  Object.keys(db.meses).sort().reverse().forEach(k=>{
+    const md=db.meses[k];
+    const comp=(md.acts||[]).filter(a=>a.est==='Completada');
+    if(comp.length>0) byMonth[k]=comp;
+  });
+  const el=document.getElementById('terminado-list');
+  if(!el)return;
+  const months=Object.keys(byMonth);
+  if(!months.length){el.innerHTML='<div class="empty">No hay actividades completadas aún.</div>';return;}
+  function paroTag(p){if(!p||p===''||p==='No necesario')return'';const isMol=p.startsWith('Molino');return` <span class="paro-tag${isMol?' mol':p==='Almacén'?' alm':''}">${p}</span>`}
+  el.innerHTML=months.map(k=>{
+    const [y,m]=k.split('-');
+    const label=MESES[parseInt(m)-1]+' '+y;
+    const acts=byMonth[k];
+    const rows=acts.map(a=>`<tr>
+      <td>${a.actId||'—'}</td>
+      <td title="${a.desc}">${a.desc}</td>
+      <td>${a.equipo||'—'}</td>
+      <td>${a.tec||'—'}</td>
+      <td>${a.fecha||'—'}</td>
+      <td><span class="bdg bG">Completada</span>${a.locked?' 🔒':''}</td>
+      <td>${paroTag(a.paro)}</td>
+      ${isAdm()?`<td><button class="btnXs" style="color:var(--Rtxt)" onclick="elimAct('${a.id}','act')">✕</button></td>`:''}
+    </tr>`).join('');
+    return `<div class="mes-sep">📅 ${label} — ${acts.length} actividad(es)</div>
+    <div class="tw"><table>
+      <thead><tr><th>ID</th><th>Descripción</th><th>Equipo</th><th>Técnico</th><th>Fecha</th><th>Estado</th><th>Paro</th>${isAdm()?'<th></th>':''}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  }).join('');
+}
+
+// ─── MULTISELECT ──────────────────────────────────────────────────────────
+function rowClick(e,id){
+  // If clicking a checkbox or button, don't open modal
+  if(e.target.type==='checkbox'||e.target.tagName==='BUTTON') return;
+  // If any checkboxes are checked, toggle this row's checkbox instead
+  const any=document.querySelectorAll('.act-chk:checked').length>0;
+  if(any){
+    const chk=document.querySelector(`.act-chk[data-id="${id}"]`);
+    if(chk){chk.checked=!chk.checked;updateSel();}
+    return;
+  }
+  openEditModal(id,'act');
+}
+function updateSel(){
+  const checked=document.querySelectorAll('.act-chk:checked');
+  const bar=document.getElementById('sel-bar');
+  const cnt=document.getElementById('sel-count');
+  if(bar)bar.classList.toggle('on',checked.length>0);
+  if(cnt)cnt.textContent=checked.length+' seleccionada'+(checked.length===1?'':'s');
+  // Update select-all checkbox state
+  const all=document.querySelectorAll('.act-chk');
+  const chkAll=document.getElementById('chk-all');
+  if(chkAll) chkAll.checked=all.length>0&&checked.length===all.length;
+  // Highlight selected rows
+  document.querySelectorAll('.act-chk').forEach(c=>{
+    const row=document.getElementById('row-'+c.dataset.id);
+    if(row) row.classList.toggle('selected',c.checked);
+  });
+}
+function toggleAllSel(chkAll){
+  document.querySelectorAll('.act-chk').forEach(c=>{c.checked=chkAll.checked;});
+  updateSel();
+}
+function clearSel(){
+  document.querySelectorAll('.act-chk').forEach(c=>c.checked=false);
+  updateSel();
+}
+function elimSeleccionadas(){
+  const ids=[...document.querySelectorAll('.act-chk:checked')].map(c=>c.dataset.id);
+  if(!ids.length)return;
+  if(!confirm(`¿Eliminar ${ids.length} actividad(es) seleccionada(s)?`))return;
+  const db=gdb();
+  Object.values(db.meses).forEach(md=>{
+    md.acts=md.acts.filter(a=>!ids.includes(String(a.id)));
+  });
+  svdb(db);clearSel();rProg();rPanel();
+}
 
 // ─── FIREBASE INIT ────────────────────────────────────────────────────────
 const FB_CONFIG = {
@@ -1506,7 +1660,7 @@ function initFirebase(){
         // Refresh UI to show other device's changes
         if(gS()){
           updateBadges();
-          const renders={panel:rPanel,prog:rProg,personal:rPersonal,incidencias:rInc,
+          const renders={panel:rPanel,prog:rProg,terminado:rTerminado,personal:rPersonal,incidencias:rInc,
             guardias:rGuard,usuarios:rUsuarios,stats:rStats,notificaciones:rNotifs,mensajes:rMsgs};
           if(renders[TAB]) try{ renders[TAB](); }catch(e){}
         }
