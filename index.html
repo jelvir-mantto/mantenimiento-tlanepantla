@@ -225,6 +225,9 @@ tr:last-child td{border-bottom:none}
 tr.selected td{background:#FEF2F2!important}
 .chk-col{width:32px!important;text-align:center!important}
 .mes-sep{background:var(--bg2);border-radius:var(--r);padding:7px 12px;margin:10px 0 5px;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em}
+.ot-card{border-left:3px solid var(--P);padding:10px 12px;margin-bottom:7px;border-radius:0 var(--r) var(--r) 0;background:var(--Pbg)}
+.ot-card .ot-desc{font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px}
+.ot-card .ot-sub{font-size:11px;color:var(--text2)}
 </style>
 </head>
 <body>
@@ -271,6 +274,7 @@ tr.selected td{background:#FEF2F2!important}
 <div class="pnl on" id="pnl-panel">
   <div id="p-notifs"></div>
   <div id="p-pending"></div>
+  <div id="p-ot-sin-cerrar"></div>
   <div class="g3" id="p-metrics"></div>
   <div id="p-prog"></div>
   <div class="card"><div class="ct">Esta semana</div><div class="wk-grid" id="wk-cal"></div></div>
@@ -286,18 +290,28 @@ tr.selected td{background:#FEF2F2!important}
     <input type="file" id="fileIn" accept=".xlsx,.xls,.csv" style="display:none">
     <div id="impSt" style="margin-top:7px;font-size:12px;min-height:14px"></div>
   </div>
-  <div class="card">
-    <div class="ct">Agregar actividad</div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="padding:11px 13px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;touch-action:manipulation" onclick="toggleAddActForm(this)">
+      <div class="ct" style="margin-bottom:0">Agregar actividad</div>
+      <span id="add-act-ico" style="font-size:18px;color:var(--text2);transition:transform .2s">＋</span>
+    </div>
+    <div id="add-act-body" style="display:none;padding:0 13px 13px">
     <div class="g2" style="margin-bottom:7px"><div class="fg"><label>ID</label><input id="a-id" type="text" placeholder="OT-001"></div><div class="fg"><label>Equipo</label><input id="a-equipo" type="text" placeholder="Molino 1"></div></div>
     <div class="fg" style="margin-bottom:7px"><label>Descripción</label><input id="a-desc" type="text" placeholder="Lubricación rodamientos..."></div>
     <div class="g3" style="margin-bottom:7px"><div class="fg"><label>Edificio</label><input id="a-edificio" type="text" placeholder="Nave A"></div><div class="fg"><label>Nivel</label><input id="a-nivel" type="text" placeholder="Piso 1"></div><div class="fg"><label>Área</label><input id="a-area" type="text" placeholder="Molienda"></div></div>
     <div class="g3" style="margin-bottom:7px">
       <div class="fg"><label>Tipo</label><select id="a-tipo"><option>Mecánico</option><option>Eléctrico</option></select></div>
       <div class="fg"><label>Paro programado</label><select id="a-paro"><option value="">No necesario</option><option>Molino A</option><option>Molino B</option><option>Molino C</option><option>Almacén</option><option>Otro</option></select></div>
-      <div class="fg"><label>Técnico</label><select id="a-tec"></select></div>
+      <div class="fg"><label>Técnico(s)</label>
+        <div id="a-tec-wrap" style="display:flex;flex-wrap:wrap;gap:4px;min-height:34px;padding:5px 8px;border:0.5px solid var(--brd2);border-radius:var(--r);background:var(--bg2);cursor:pointer" onclick="openTecPicker()">
+          <span id="a-tec-lbl" style="font-size:13px;color:var(--text2)">Toca para seleccionar</span>
+        </div>
+        <input type="hidden" id="a-tec-val" value="">
+      </div>
     </div>
     <div class="fg" style="margin-bottom:9px"><label>Fecha</label><input id="a-fecha" type="date"></div>
     <button class="btn btnP w100" id="btnAddAct">Agregar actividad</button>
+    </div>
   </div>
   <div class="card">
     <div class="ct">Calendario — toca un día</div>
@@ -332,8 +346,12 @@ tr.selected td{background:#FEF2F2!important}
 
 <!-- INCIDENCIAS -->
 <div class="pnl" id="pnl-incidencias">
-  <div class="card">
-    <div class="ct">Registrar incidencia</div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="padding:11px 13px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;touch-action:manipulation" onclick="toggleIncForm(this)">
+      <div class="ct" style="margin-bottom:0">Registrar incidencia</div>
+      <span id="inc-form-ico" style="font-size:18px;color:var(--text2);transition:transform .2s">＋</span>
+    </div>
+    <div id="inc-form-body" style="display:none;padding:0 13px 13px">
     <div class="g2" style="margin-bottom:7px"><div class="fg"><label>OT</label><input id="i-ot" type="text" placeholder="OT-INC-001"></div><div class="fg"><label>ID / Folio</label><input id="i-id" type="text" placeholder="ID interno"></div></div>
     <div class="g2" style="margin-bottom:7px"><div class="fg"><label>Área que reporta</label><input id="i-orig" type="text" placeholder="Producción..."></div><div class="fg"><label>Fecha</label><input id="i-fecha" type="date"></div></div>
     <div class="g2" style="margin-bottom:7px"><div class="fg"><label>Máquina / Equipo</label><input id="i-maq" type="text" placeholder="Molino 2"></div><div class="fg"><label>Área afectada</label><input id="i-area" type="text" placeholder="Molienda"></div></div>
@@ -348,11 +366,29 @@ tr.selected td{background:#FEF2F2!important}
       <div id="i-foto-prev-wrap" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
       <div style="font-size:11px;color:var(--text2);margin-top:3px">Puedes seleccionar varias fotos. Las imágenes se comprimen automáticamente.</div></div>
     <button class="btn btnP w100" id="btnAddInc">Registrar incidencia</button>
+    </div>
   </div>
   <div class="card"><div class="ct">Incidencias del mes</div><div id="inc-list"></div></div>
 </div>
 
 <!-- GUARDIAS -->
+<div class="pnl" id="pnl-visitas">
+  <div class="card">
+    <div class="ct">Registrar visita fuera de horario</div>
+    <div class="g2" style="margin-bottom:7px">
+      <div class="fg"><label>Técnico</label><select id="v-tec"></select></div>
+      <div class="fg"><label>Fecha</label><input id="v-fecha" type="date"></div>
+    </div>
+    <div class="fg" style="margin-bottom:7px"><label>Motivo</label><input id="v-motivo" type="text" placeholder="Falla eléctrica, alarma, etc."></div>
+    <div class="g2" style="margin-bottom:9px">
+      <div class="fg"><label>Tiempo de paro (hrs)</label><input id="v-paro" type="number" placeholder="0.5" step="0.5" min="0"></div>
+      <div class="fg"><label>Área afectada</label><input id="v-area" type="text" placeholder="Molienda"></div>
+    </div>
+    <button class="btn btnP w100" id="btnAddVisita">Registrar visita</button>
+  </div>
+  <div id="visitas-list"></div>
+</div>
+
 <div class="pnl" id="pnl-guardias">
   <div class="card">
     <div class="ct">Guardias del mes · toca para cambiar estado</div>
@@ -657,7 +693,7 @@ function initApp(){
   document.getElementById('hdrGreet').textContent=`${sal}, ${nom.split(',')[0].trim()}`;
   if(admin)document.getElementById('hdrTitle').innerHTML='Mantenimiento · Tlanepantla <span class="atag">ADMIN</span>';
   document.getElementById('mesLbl').textContent=`${MESES[MES.m]} ${MES.y}`;
-  document.getElementById('a-fecha').value=hoyS();document.getElementById('i-fecha').value=hoyS();
+  document.getElementById('a-fecha').value=hoyS();document.getElementById('i-fecha').value=hoyS();const vf=document.getElementById('v-fecha');if(vf)vf.value=hoyS();
   document.getElementById('import-card').style.display=admin?'':'none';
   if(!admin)document.getElementById('guard-hint').style.display='none';
   buildNav(admin);syncTec();syncTecInc();updateBadges();
@@ -672,26 +708,23 @@ function initApp(){
 }
 
 function buildNav(admin){
+  // Notificaciones y Mensajes solo como íconos en header — no en tabs ni bnav
   const adminTabs=[
     {id:'panel',lbl:'Panel',ico:'⊞'},{id:'prog',lbl:'Prog.',ico:'📅'},
     {id:'terminado',lbl:'Terminado',ico:'✅'},
-    {id:'incidencias',lbl:'Incid.',ico:'⚠'},{id:'notificaciones',lbl:'Avisos',ico:'🔔'},
-    {id:'mensajes',lbl:'Msajes',ico:'💬'},{id:'guardias',lbl:'Guardias',ico:'🔒'},
-    {id:'personal',lbl:'Personal',ico:'👥'},{id:'usuarios',lbl:'Usuarios',ico:'👤'},
-    {id:'stats',lbl:'Stats',ico:'📊'},
+    {id:'incidencias',lbl:'Pendientes',ico:'📋'},{id:'guardias',lbl:'Guardias',ico:'🔒'},
+    {id:'visitas',lbl:'Visitas',ico:'🏭'},{id:'personal',lbl:'Personal',ico:'👥'},
+    {id:'usuarios',lbl:'Usuarios',ico:'👤'},{id:'stats',lbl:'Stats',ico:'📊'},
   ];
   const tecTabs=[
     {id:'panel',lbl:'Panel',ico:'⊞'},{id:'prog',lbl:'Prog.',ico:'📅'},
     {id:'terminado',lbl:'Terminado',ico:'✅'},
-    {id:'incidencias',lbl:'Incid.',ico:'⚠'},{id:'guardias',lbl:'Guardias',ico:'🔒'},
-    {id:'notificaciones',lbl:'Avisos',ico:'🔔'},{id:'mensajes',lbl:'Msajes',ico:'💬'},
+    {id:'incidencias',lbl:'Pendientes',ico:'📋'},{id:'guardias',lbl:'Guardias',ico:'🔒'},
+    {id:'visitas',lbl:'Visitas',ico:'🏭'},
   ];
   const tabs=admin?adminTabs:tecTabs;
   document.getElementById('tabsBar').innerHTML=tabs.map(t=>`<button class="tab${t.id==='panel'?' on':''}" data-tab="${t.id}">${t.lbl}</button>`).join('');
-  document.getElementById('bnavInner').innerHTML=tabs.slice(0,5).map(t=>{
-    const needBdg=t.id==='notificaciones'||t.id==='mensajes';
-    return `<button class="bi${t.id==='panel'?' on':''}" data-tab="${t.id}"><span class="bico">${t.ico}</span>${t.lbl}${needBdg?`<span class="bi-bdg" style="display:none">0</span>`:''}</button>`;
-  }).join('');
+  document.getElementById('bnavInner').innerHTML=tabs.slice(0,5).map(t=>`<button class="bi${t.id==='panel'?' on':''}" data-tab="${t.id}"><span class="bico">${t.ico}</span>${t.lbl}</button>`).join('');
   document.querySelectorAll('.tab,.bi').forEach(b=>b.addEventListener('click',()=>sw(b.dataset.tab)));
   if(!admin)['pnl-personal','pnl-usuarios','pnl-stats'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none'});
 }
@@ -701,7 +734,7 @@ function sw(t){
   document.querySelectorAll('.tab,.bi').forEach(el=>el.classList.toggle('on',el.dataset.tab===t));
   document.querySelectorAll('.pnl').forEach(el=>el.classList.toggle('on',el.id==='pnl-'+t));
   window.scrollTo({top:0,behavior:'instant'});
-  ({panel:rPanel,prog:rProg,terminado:rTerminado,personal:rPersonal,incidencias:rInc,guardias:rGuard,usuarios:rUsuarios,stats:rStats,notificaciones:rNotifs,mensajes:rMsgs}[t]||function(){})();
+  ({panel:rPanel,prog:rProg,terminado:rTerminado,personal:rPersonal,incidencias:rInc,guardias:rGuard,visitas:rVisitas,usuarios:rUsuarios,stats:rStats,notificaciones:rNotifs,mensajes:rMsgs}[t]||function(){})();
   syncTec();syncTecInc();
 }
 
@@ -716,7 +749,7 @@ function rPanel(){
   const admin=isAdm();const nom=admin?null:curNom();
   const myA=nom?md.acts.filter(a=>a.tec===nom):md.acts;
   document.getElementById('p-metrics').innerHTML=`
-    <div class="met"><div class="mv cG">${myA.filter(a=>a.est==='Completada').length}</div><div class="ml">Realizadas</div></div>
+    <div class="met"><div class="mv cG">${myA.filter(a=>a.est==='Completada'||a.est==='Pendiente Cerrar OT').length}</div><div class="ml">Realizadas</div></div>
     <div class="met"><div class="mv cA">${myA.filter(a=>a.est==='En progreso').length}</div><div class="ml">En progreso</div></div>
     <div class="met"><div class="mv cB">${myA.filter(a=>a.est==='Pendiente').length}</div><div class="ml">Pendientes</div></div>`;
   // PENDING
@@ -732,6 +765,29 @@ function rPanel(){
       </div>`).join('')}
     </div>`;
   } else pendEl.innerHTML='';
+  // OT SIN CERRAR
+  const otEl=document.getElementById('p-ot-sin-cerrar');
+  if(otEl){
+    // Collect all acts with est='Pendiente Cerrar OT' visible to current user
+    const otPend=[];
+    Object.values(db.meses).forEach(md=>{
+      (md.acts||[]).forEach(a=>{
+        if(a.est==='Pendiente Cerrar OT'){
+          if(admin||a.tec===nom||(Array.isArray(a.tecs)&&a.tecs.includes(nom))) otPend.push(a);
+        }
+      });
+    });
+    if(otPend.length>0){
+      otEl.innerHTML=`<div class="card" style="border-color:var(--P)">
+        <div class="ct" style="color:var(--Ptxt)">🔧 OT's sin cerrar (${otPend.length})</div>
+        ${otPend.map(a=>`<div class="ot-card">
+          <div class="ot-desc">${a.desc||'Sin descripción'}</div>
+          <div class="ot-sub">${a.actId||'—'} · ${Array.isArray(a.tecs)?a.tecs.join(', '):(a.tec||'—')} · ${a.fecha||'Sin fecha'}</div>
+          <button class="btn btnP btnSm" style="margin-top:7px;width:100%" onclick="cerrarOT('${a.id}')">✓ Cerrar OT</button>
+        </div>`).join('')}
+      </div>`;
+    } else otEl.innerHTML='';
+  }
   // NOTIFS
   let ntf='';
   const iP=md.incs.filter(i=>i.est==='Pendiente').length;
@@ -810,7 +866,7 @@ function openDayModal(ds){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:5px">
         <div style="flex:1;overflow:hidden">
           <div style="font-size:13px;font-weight:700">${a.desc||'Sin descripción'}${isInc?' <span class="bdg bA" style="font-size:9px">Inc.</span>':''}${locked?' <span class="lckbdg">🔒</span>':''}</div>
-          <div style="font-size:11px;color:var(--text2);line-height:1.7">${a.actId||a.ot||''} ${a.equipo||a.maq?'· '+(a.equipo||a.maq):''} ${a.area?'· '+a.area:''}<br>Técnico: <b>${a.tec||a.tecAsig||'—'}</b>${a.paro&&a.paro!=='No necesario'?` · <span class="paro-tag molino">Paro: ${a.paro}</span>`:''}</div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.7">${a.actId||a.ot||''} ${a.equipo||a.maq?'· '+(a.equipo||a.maq):''} ${a.area?'· '+a.area:''}<br>Técnico: <b>${a.tecs&&a.tecs.length?a.tecs.join(', '):(a.tec||a.tecAsig||'—')}</b>${a.paro&&a.paro!=='No necesario'?` · <span class="paro-tag molino">Paro: ${a.paro}</span>`:''}</div>
         </div>
         <span class="bdg ${est==='Completada'||est==='Realizada'?'bG':est==='En progreso'?'bA':'b0'}">${est}</span>
       </div>
@@ -842,6 +898,68 @@ function openDayModal(ds){
   openModal();
 }
 
+function cerrarOT(id){
+  const db=gdb();let found=null;
+  Object.values(db.meses).forEach(md=>{
+    const a=(md.acts||[]).find(x=>String(x.id)===String(id));
+    if(a)found=a;
+  });
+  if(!found)return;
+  found.est='Completada';found.locked=true;
+  svdb(db);
+  notifAdmins(curNom(),'🔒 OT cerrada: "'+( found.desc||'actividad').slice(0,50)+'"');
+  rPanel();if(TAB==='terminado')rTerminado();
+}
+
+function rVisitas(){
+  const db=gdb();
+  const sel=document.getElementById('v-tec');
+  if(sel)sel.innerHTML=db.tecs.map(t=>'<option value="'+t.nom+'">'+t.nom+'</option>').join('');
+  const vf=document.getElementById('v-fecha');
+  if(vf&&!vf.value)vf.value=hoyS();
+  if(!db.visitas||!db.visitas.length){
+    const el=document.getElementById('visitas-list');
+    if(el)el.innerHTML='<div class="card"><div class="empty">Sin visitas registradas.</div></div>';
+    return;
+  }
+  const byMonth={};
+  [...db.visitas].sort((a,b)=>b.fecha.localeCompare(a.fecha)).forEach(v=>{
+    const k=v.fecha.slice(0,7);if(!byMonth[k])byMonth[k]=[];byMonth[k].push(v);
+  });
+  const el=document.getElementById('visitas-list');if(!el)return;
+  el.innerHTML=Object.keys(byMonth).sort().reverse().map(k=>{
+    const parts=k.split('-');
+    const label=MESES[parseInt(parts[1])-1]+' '+parts[0];
+    const rows=byMonth[k].map(v=>'<tr><td>'+v.fecha+'</td><td>'+v.tec+'</td><td>'+v.motivo+'</td><td>'+(v.area||'—')+'</td><td>'+(v.paro||0)+' hrs</td>'
+      +(isAdm()?'<td><button class="btnXs" style="color:var(--Rtxt)" onclick="elimVisita(this.dataset.vid)" data-vid="'+v.id+'">✕</button></td>':'')+'</tr>').join('');
+    return '<div class="card"><div class="mes-sep">📅 '+label+' — '+byMonth[k].length+' visita(s)</div>'
+      +'<div class="tw"><table><thead><tr><th>Fecha</th><th>Técnico</th><th>Motivo</th><th>Área</th><th>T.Paro</th>'+(isAdm()?'<th></th>':'')+'</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+  }).join('');
+}
+
+function addVisita(){
+  const tec=document.getElementById('v-tec')?.value||'';
+  const fecha=document.getElementById('v-fecha')?.value||'';
+  const motivo=document.getElementById('v-motivo')?.value.trim()||'';
+  const paro=document.getElementById('v-paro')?.value||'0';
+  const area=document.getElementById('v-area')?.value.trim()||'';
+  if(!tec||!fecha||!motivo){alert('Completa técnico, fecha y motivo');return;}
+  const db=gdb();
+  if(!db.visitas)db.visitas=[];
+  db.visitas.push({id:Date.now()+'',tec,fecha,motivo,paro:parseFloat(paro)||0,area});
+  svdb(db);
+  const fields=['v-motivo','v-paro','v-area'];
+  fields.forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  rVisitas();
+}
+
+function elimVisita(id){
+  if(!confirm('¿Eliminar esta visita?'))return;
+  const db=gdb();
+  db.visitas=(db.visitas||[]).filter(v=>v.id!==id);
+  svdb(db);rVisitas();
+}
+
 function cambEst(id,src,val,sel){
   const db=gdb();let found=null;
   Object.values(db.meses).forEach(md=>{
@@ -850,8 +968,11 @@ function cambEst(id,src,val,sel){
   });
   if(!found)return;
   if(found.locked&&!isAdm()){sel.value=found.est;alert('Solo el administrador puede reabrir actividades cerradas.');return}
-  const prev=found.est;found.est=val;
-  if((val==='Completada'||val==='Realizada')&&!isAdm())found.locked=true;
+  const prev=found.est;
+  if(val==='Completada'&&src==='act'){
+    found.est='Pendiente Cerrar OT';if(sel)sel.value='Pendiente Cerrar OT';
+  } else {found.est=val;}
+  if(val==='Realizada')found.locked=true;
   svdb(db);
   // Notify admin when tech changes status
   if(!isAdm()&&prev!==val){
@@ -984,7 +1105,7 @@ function rProg(){
     ch+=`<div class="cc" style="${isH?'border:1.5px solid var(--G)':''}" onclick="openDayModal('${ds}')"><div class="dn" style="${isH?'color:var(--G)':''}">${d}</div>${dots}</div>`;
   }
   document.getElementById('cal').innerHTML=ch;
-  const filtered=((_paroFilt?md.acts.filter(a=>a.paro===_paroFilt):md.acts)).filter(a=>a.est!=='Completada');
+  const filtered=((_paroFilt?md.acts.filter(a=>a.paro===_paroFilt):md.acts)).filter(a=>a.est!=='Completada'&&a.est!=='Pendiente Cerrar OT');
   document.getElementById('act-count').textContent=`(${filtered.length}/${md.acts.length})`;
   function paroTag(p){if(!p||p==='No necesario')return '<span style="font-size:10px;color:var(--text3)">—</span>';const isMol=p.startsWith('Molino');return `<span class="paro-tag${isMol?' molino':p==='Almacén'?' alm':''}">${p}</span>`}
   document.getElementById('act-list').innerHTML=filtered.length===0?`<div class="empty">Sin actividades${_paroFilt?' con ese filtro':''}.</div>`
@@ -992,10 +1113,12 @@ function rProg(){
     <tbody>${filtered.map(a=>`<tr class="trk" id="row-${a.id}" onclick="rowClick(event,'${a.id}')">
       ${isAdm()?`<td class="chk-col" onclick="event.stopPropagation()"><input type="checkbox" class="act-chk" data-id="${a.id}" onchange="updateSel()"></td>`:''}
       <td>${a.actId||'—'}</td><td title="${a.desc}">${a.desc}</td>
-      <td style="color:${a.tec?'var(--text)':'var(--Rtxt)'}">${a.tec||'⚠ Sin asignar'}</td>
+      <td style="color:${(a.tecs&&a.tecs.length)||a.tec?'var(--text)':'var(--Rtxt)'}">${a.tecs&&a.tecs.length?a.tecs.join(', '):(a.tec||'⚠ Sin asignar')}</td>
       <td style="color:${a.fecha?'var(--text)':'var(--Rtxt)'}">${a.fecha||'⚠ Sin fecha'}</td>
       <td>${estB(a.est)}${a.locked?' 🔒':''}</td>
-      <td>${paroTag(a.paro)}</td>
+      <td onclick="event.stopPropagation()">${isAdm()?`<select style="font-size:10px;padding:2px 4px;border:0.5px solid var(--brd2);border-radius:4px;background:var(--bg2);color:var(--text);width:100%;max-width:90px" onchange="setParo('${a.id}',this.value)">
+        ${['','Molino A','Molino B','Molino C','Almacén','Otro'].map(p=>`<option value="${p}"${(a.paro||'')=== p?' selected':''}>${p||'No nec.'}</option>`).join('')}
+      </select>`:paroTag(a.paro)}</td>
       ${isAdm()?`<td><button class="btnXs" style="color:var(--Rtxt)" onclick="event.stopPropagation();elimAct('${a.id}','act')">✕</button></td>`:''}
     </tr>`).join('')}</tbody></table>`;
 }
@@ -1172,7 +1295,7 @@ function addAct(){
     equipo:document.getElementById('a-equipo').value.trim(),edificio:document.getElementById('a-edificio').value.trim(),
     nivel:document.getElementById('a-nivel').value.trim(),area:document.getElementById('a-area').value.trim(),
     tipo:document.getElementById('a-tipo').value,paro:document.getElementById('a-paro').value,
-    fecha:document.getElementById('a-fecha').value,tec:document.getElementById('a-tec').value,
+    fecha:document.getElementById('a-fecha').value,tec:_selectedTecs[0]||'',tecs:_selectedTecs.length>0?_selectedTecs:[],
     est:'Pendiente',comments:[],locked:false};
   const db=gdb();
   if(isAdm()){const md=gmd(db,mak());obj.id=md.nA++;md.acts.push(obj);svdb(db);rProg();rPanel();
@@ -1181,7 +1304,7 @@ function addAct(){
     db.pending.push({id:Date.now(),tipo:'act',data:obj,nom:curNom(),fecha:hoyS()});
     svdb(db);updateBadges();alert('Actividad enviada al administrador para autorización.');
   }
-  ['a-id','a-desc','a-equipo','a-edificio','a-nivel','a-area'].forEach(id=>document.getElementById(id).value='');
+  ['a-id','a-desc','a-equipo','a-edificio','a-nivel','a-area'].forEach(id=>document.getElementById(id).value='');updateTecWrap([]);
 }
 
 function addInc(){
@@ -1263,23 +1386,25 @@ function addUser(){
 function delUser(id){if(!confirm('¿Eliminar usuario?'))return;const db=gdb();db.users=db.users.filter(u=>String(u.id)!==String(id));svdb(db);rUsuarios()}
 
 function aprobar(id){
-  const db=gdb();const p=db.pending.find(x=>String(x.id)===String(id));
-  if(p){const md=gmd(db,mak());if(p.tipo==='act'){md.acts.push(p.data)}else{md.incs.push(p.data)}
-    // Notify requester
-    const ru=db.users.find(u=>u.nom===p.nom);
-    if(ru)crearNotif(ru.username,'Administrador',`✅ Tu solicitud fue aprobada: "${p.data.desc?.slice(0,50)}"`,null);
-  }
-  db.pending=db.pending.filter(x=>x.id!==id);svdb(db);rPanel();rProg();rInc();
+  const db=gdb();
+  const p=db.pending.find(x=>String(x.id)===String(id));
+  if(!p){rPanel();return;} // already approved/rejected
+  db.pending=db.pending.filter(x=>String(x.id)!==String(id)); // remove FIRST
+  const md=gmd(db,mak());
+  if(p.tipo==='act'){md.acts.push(p.data)}else{md.incs.push(p.data)}
+  const ru=db.users.find(u=>u.nom===p.nom);
+  if(ru)crearNotif(ru.username,'Administrador',`✅ Tu solicitud fue aprobada: "${p.data.desc?.slice(0,50)}"`,null);
+  svdb(db);rPanel();rProg();rInc();
 }
 function rechazar(id){
-  const db=gdb();const p=db.pending.find(x=>String(x.id)===String(id));
-  if(p){const ru=db.users.find(u=>u.nom===p.nom);
-    if(ru)crearNotif(ru.username,'Administrador',`❌ Tu solicitud fue rechazada: "${p.data.desc?.slice(0,50)}"`,null);
-  }
-  db.pending=db.pending.filter(x=>x.id!==id);svdb(db);rPanel();
+  const db=gdb();
+  const p=db.pending.find(x=>String(x.id)===String(id));
+  if(!p){rPanel();return;} // already processed
+  db.pending=db.pending.filter(x=>String(x.id)!==String(id)); // remove FIRST
+  const ru=db.users.find(u=>u.nom===p.nom);
+  if(ru)crearNotif(ru.username,'Administrador',`❌ Tu solicitud fue rechazada: "${p.data.desc?.slice(0,50)}"`,null);
+  svdb(db);rPanel();
 }
-
-// ═══ IMPORT XLSX ═══
 function importFile(input){
   if(!isAdm())return;
   const file=input.files[0];if(!file)return;
@@ -1442,8 +1567,49 @@ function importConfig(code){
 }
 
 // ═══ HELPERS ═══
-function estB(e){const m={Completada:'bG',Pendiente:'b0','En progreso':'bA',Realizada:'bG'};return `<span class="bdg ${m[e]||'b0'}">${e}</span>`}
-function syncTec(){const tecs=gdb().tecs;const el=document.getElementById('a-tec');if(!el)return;el.innerHTML=tecs.length===0?'<option value="">— sin técnicos —</option>':tecs.map(t=>`<option value="${t.nom}">${t.nom} (${t.esp})</option>`).join('')}
+function estB(e){const m={Completada:'bG',Pendiente:'b0','En progreso':'bA',Realizada:'bG','Pendiente Cerrar OT':'bP'};return `<span class="bdg ${m[e]||'b0'}">${e}</span>`}
+function syncTec(){
+  // For multi-tec picker: just refresh display
+  const tecs=gdb().tecs;
+  // Legacy single select compatibility (for inc form etc)
+  const el=document.getElementById('a-tec');
+  if(el)el.innerHTML=tecs.length===0?'<option value="">— sin técnicos —</option>':tecs.map(t=>`<option value="${t.nom}">${t.nom} (${t.esp})</option>`).join('');
+  updateTecWrap([]);
+}
+let _selectedTecs=[];
+function updateTecWrap(sel){
+  _selectedTecs=sel;
+  const wrap=document.getElementById('a-tec-wrap');
+  const lbl=document.getElementById('a-tec-lbl');
+  const hidden=document.getElementById('a-tec-val');
+  if(!wrap)return;
+  if(sel.length===0){
+    wrap.innerHTML='<span id="a-tec-lbl" style="font-size:13px;color:var(--text2)">Toca para seleccionar</span>';
+  } else {
+    wrap.innerHTML=sel.map(t=>`<span style="background:var(--Gbg);color:var(--Gtxt);padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600">${t}</span>`).join('')
+      +'<span style="font-size:13px;color:var(--text2);margin-left:4px" onclick="openTecPicker()">+</span>';
+  }
+  if(hidden)hidden.value=sel.join(',');
+}
+function openTecPicker(){
+  const db=gdb();const tecs=db.tecs;
+  if(!tecs.length){alert('No hay técnicos registrados');return;}
+  const modal=document.getElementById('gModalTitle');
+  const body=document.getElementById('gModalBody');
+  modal.textContent='Seleccionar técnico(s)';
+  body.innerHTML=`<div style="margin-bottom:10px;font-size:12px;color:var(--text2)">Selecciona uno o más técnicos para esta actividad.</div>
+    ${tecs.map(t=>`<label style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--brd);cursor:pointer">
+      <input type="checkbox" value="${t.nom}" ${_selectedTecs.includes(t.nom)?'checked':''} style="width:18px;height:18px;cursor:pointer">
+      <span style="font-size:13px;font-weight:600">${t.nom}</span><span class="bdg ${t.esp==='Mecánico'?'bG':'bB'}" style="font-size:10px">${t.esp}</span>
+    </label>`).join('')}
+    <button class="btn btnP w100" style="margin-top:12px" onclick="confirmTecPicker()">Confirmar</button>`;
+  openModal();
+}
+function confirmTecPicker(){
+  const checked=[...document.querySelectorAll('#gModalBody input[type=checkbox]:checked')].map(c=>c.value);
+  updateTecWrap(checked);
+  closeModal();
+}
 function syncTecInc(){const tecs=gdb().tecs;const el=document.getElementById('i-tec-asig');if(!el)return;el.innerHTML=`<option value="">— Sin asignar —</option>`+tecs.map(t=>`<option value="${t.nom}">${t.nom}</option>`).join('')}
 function openModal(){
   document.getElementById('gModal').classList.add('on');
@@ -1514,6 +1680,16 @@ document.getElementById('btnMarkAllRead').addEventListener('click',()=>{const db
 cargarEjemplo();
 if(gS())initApp();
 
+// ─── PARO INLINE ──────────────────────────────────────────────────────────
+function setParo(id,val){
+  const db=gdb();
+  Object.values(db.meses).forEach(md=>{
+    const a=(md.acts||[]).find(x=>String(x.id)===String(id));
+    if(a)a.paro=val;
+  });
+  svdb(db);
+}
+
 // ─── TERMINADO ────────────────────────────────────────────────────────────
 function rTerminado(){
   const db=gdb();
@@ -1540,7 +1716,9 @@ function rTerminado(){
       <td>${a.tec||'—'}</td>
       <td>${a.fecha||'—'}</td>
       <td><span class="bdg bG">Completada</span>${a.locked?' 🔒':''}</td>
-      <td>${paroTag(a.paro)}</td>
+      <td onclick="event.stopPropagation()">${isAdm()?`<select style="font-size:10px;padding:2px 4px;border:0.5px solid var(--brd2);border-radius:4px;background:var(--bg2);color:var(--text);width:100%;max-width:90px" onchange="setParo('${a.id}',this.value)">
+        ${['','Molino A','Molino B','Molino C','Almacén','Otro'].map(p=>`<option value="${p}"${(a.paro||'')=== p?' selected':''}>${p||'No nec.'}</option>`).join('')}
+      </select>`:paroTag(a.paro)}</td>
       ${isAdm()?`<td><button class="btnXs" style="color:var(--Rtxt)" onclick="elimAct('${a.id}','act')">✕</button></td>`:''}
     </tr>`).join('');
     return `<div class="mes-sep">📅 ${label} — ${acts.length} actividad(es)</div>
@@ -1549,6 +1727,22 @@ function rTerminado(){
       <tbody>${rows}</tbody>
     </table></div>`;
   }).join('');
+}
+
+// ─── INC FORM TOGGLE ─────────────────────────────────────────────────────
+function toggleAddActForm(header){
+  const body=document.getElementById('add-act-body');
+  const ico=document.getElementById('add-act-ico');
+  const open=body.style.display==='none';
+  body.style.display=open?'block':'none';
+  if(ico)ico.style.transform=open?'rotate(45deg)':'rotate(0deg)';
+}
+function toggleIncForm(header){
+  const body=document.getElementById('inc-form-body');
+  const ico=document.getElementById('inc-form-ico');
+  const open=body.style.display==='none';
+  body.style.display=open?'block':'none';
+  if(ico)ico.style.transform=open?'rotate(45deg)':'rotate(0deg)';
 }
 
 // ─── PHOTO HELPERS ───────────────────────────────────────────────────────
