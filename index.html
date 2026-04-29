@@ -1780,8 +1780,8 @@ function rPanel(){
   const semD=getSem();const ts=hoyS();
   document.getElementById('wk-cal').innerHTML=semD.map(d=>{
     const ds=fmtD(d);
-    const da=md.acts.filter(a=>a.fecha===ds&&(nom===null||a.tec===nom));
-    const di=md.incs.filter(i=>(i.fechaProg||'')=== ds&&(nom===null||i.tecAsig===nom||i.tec===nom));
+    const da=md.acts.filter(a=>a.fecha===ds);
+    const di=md.incs.filter(i=>(i.fechaProg||'')=== ds);
     const dots=[...da.map(a=>`<span class="dot" style="background:${a.tipo==='Mecánico'?'var(--G)':'var(--B)'}"></span>`),
       ...di.map(()=>`<span class="dot" style="background:var(--A)"></span>`)].join('');
     const isH=ds===ts;
@@ -1791,7 +1791,7 @@ function rPanel(){
   }).join('');
   // HOY
   document.getElementById('p-hoy-ct').textContent=admin?'Actividades de hoy':'Mis actividades de hoy';
-  const hA=(nom?md.acts.filter(a=>a.tec===nom):md.acts).filter(a=>a.fecha===ts);
+  const hA=md.acts.filter(a=>a.fecha===ts);
   const hI=md.incs.filter(i=>(i.fechaProg||'')=== ts&&(nom===null||i.tecAsig===nom||i.tec===nom));
   const allH=[...hA.map(a=>({...a,_t:'act'})),...hI.map(i=>({...i,_t:'inc',desc:i.desc}))];
   document.getElementById('p-hoy').innerHTML=allH.length===0?`<div class="empty">Sin actividades para hoy</div>`
@@ -1816,8 +1816,8 @@ function openDayModal(ds){
   const db=gdb();const nom=isAdm()?null:curNom();const md=gmd(db,mak());
   let acts=[],incs=[];
   Object.values(db.meses).forEach(m2=>{
-    (m2.acts||[]).forEach(a=>{if(a.fecha===ds&&(nom===null||a.tec===nom))acts.push({...a,_s:'act'})});
-    (m2.incs||[]).forEach(i=>{if((i.fechaProg||'')=== ds&&(nom===null||i.tecAsig===nom||i.tec===nom))incs.push({...i,_s:'inc'})});
+    (m2.acts||[]).forEach(a=>{if(a.fecha===ds)acts.push({...a,_s:'act'})});
+    (m2.incs||[]).forEach(i=>{if((i.fechaProg||'')=== ds)incs.push({...i,_s:'inc'})});
   });
   const d=new Date(ds+'T12:00:00');
   document.getElementById('gModalTitle').textContent=`${DC[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()]}`;
