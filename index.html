@@ -302,12 +302,8 @@ tr.selected td{background:#FEF2F2!important}
     <div class="g3" style="margin-bottom:7px">
       <div class="fg"><label>Tipo</label><select id="a-tipo"><option>Mecánico</option><option>Eléctrico</option></select></div>
       <div class="fg"><label>Paro programado</label><select id="a-paro"><option value="">No necesario</option><option>Molino A</option><option>Molino B</option><option>Molino C</option><option>Almacén</option><option>Paro General</option><option>Otro</option></select></div>
-      <div class="fg"><label>Técnico(s)</label>
-        <div id="a-tec-wrap" style="display:flex;flex-wrap:wrap;gap:4px;min-height:34px;padding:5px 8px;border:0.5px solid var(--brd2);border-radius:var(--r);background:var(--bg2);cursor:pointer" onclick="openTecPicker()">
-          <span id="a-tec-lbl" style="font-size:13px;color:var(--text2)">Toca para seleccionar</span>
-        </div>
-        <input type="hidden" id="a-tec-val" value="">
-      </div>
+      <div class="fg"><label>Técnico 1</label><select id="a-tec"></select></div>
+      <div class="fg"><label>Técnico 2 (opcional)</label><select id="a-tec2"><option value="">— Ninguno —</option></select></div>
     </div>
     <div class="fg" style="margin-bottom:9px"><label>Fecha</label><input id="a-fecha" type="date"></div>
     <button class="btn btnP w100" id="btnAddAct">Agregar actividad</button>
@@ -1845,7 +1841,7 @@ function openDayModal(ds){
         </select>
         ${isAdm()?`<button class="btnXs" onclick="openEditModal('${a.id}','${a._s}')">Editar</button>`:''}
       </div>`:''}
-      ${a.comments&&a.comments.length>0?`<div style="margin-top:7px">${a.comments.map(c=>`<div class="cmt"><span class="cmt-who">${c.nom}</span><span class="cmt-d">${c.fecha}</span><br>${c.txt}</div>`).join('')}</div>`:''}
+      ${a.comments&&a.comments.length>0?`<div style="margin-top:7px">${a.comments.map((c,ci)=>`<div class="cmt" style="display:flex;align-items:flex-start;gap:4px"><div style="flex:1"><span class="cmt-who">${c.nom}</span><span class="cmt-d"> ${c.fecha}</span><br>${c.txt}</div>${isAdm()||c.nom===curNom()?`<button class="btnXs" style="color:var(--Rtxt);padding:1px 5px;font-size:10px;flex-shrink:0" onclick="elimCmt('${a.id}','${a._s}',${ci})">✕</button>`:''}</div>`).join('')}</div>`:''}
       ${canE?`<div style="display:flex;gap:5px;margin-top:7px">
         <input type="text" id="cmt-${a._s}-${a.id}" placeholder="Agregar comentario..." style="flex:1;font-size:12px;padding:5px 8px;background:var(--bg2)">
         <button class="btnXs" onclick="addCmt('${a.id}','${a._s}',document.getElementById('cmt-${a._s}-${a.id}').value)">Enviar</button>
@@ -1950,6 +1946,16 @@ function cambEst(id,src,val,sel){
   rPanel();
 }
 
+function elimCmt(id,src,cidx){
+  if(!confirm('¿Eliminar este comentario?'))return;
+  const db=gdb();
+  Object.values(db.meses).forEach(md=>{
+    const arr=src==='act'?md.acts:md.incs;
+    const a=arr&&arr.find(x=>String(x.id)===String(id));
+    if(a&&a.comments)a.comments.splice(cidx,1);
+  });
+  svdb(db);closeModal();
+}
 function addCmt(id,src,txt){
   if(!txt||!txt.trim())return;
   const db=gdb();let found=null,foundMes=null;
@@ -2000,7 +2006,8 @@ function openEditModal(id,src){
     </div>
     <div class="g2" style="margin-bottom:8px">
       <div class="fg"><label>Fecha</label><input id="ea-fecha" type="date" value="${a.fecha||''}"></div>
-      <div class="fg"><label>Técnico</label><select id="ea-tec">${tOpts}</select></div>
+      <div class="fg"><label>Técnico 1</label><select id="ea-tec">${tOpts}</select></div>
+    <div class="fg"><label>Técnico 2 (opcional)</label><select id="ea-tec2"><option value="">— Ninguno —</option>${db.tecs.map(t=>`<option value="${t.nom}"${a.tecs&&a.tecs[1]===t.nom?" selected":""}>${t.nom}</option>`).join("")}</select></div>
     </div>
     <div class="g2" style="margin-bottom:8px">
       <div class="fg"><label>Tipo</label><select id="ea-tipo"><option${a.tipo==='Mecánico'?' selected':''}>Mecánico</option><option${a.tipo==='Eléctrico'?' selected':''}>Eléctrico</option></select></div>
@@ -2034,7 +2041,7 @@ function saveEdit(id,src){
   a.nivel=document.getElementById('ea-nivel').value.trim();
   a.area=document.getElementById('ea-area').value.trim();
   a.fecha=document.getElementById('ea-fecha').value;
-  a.tec=document.getElementById('ea-tec').value;
+  a.tec=document.getElementById('ea-tec').value;const _t2=document.getElementById('ea-tec2')?.value||'';a.tecs=[a.tec,_t2].filter(Boolean);
   a.tipo=document.getElementById('ea-tipo').value;
   a.paro=document.getElementById('ea-paro').value;
   a.est=document.getElementById('ea-est').value;
@@ -2269,7 +2276,7 @@ function addAct(){
     equipo:document.getElementById('a-equipo').value.trim(),edificio:document.getElementById('a-edificio').value.trim(),
     nivel:document.getElementById('a-nivel').value.trim(),area:document.getElementById('a-area').value.trim(),
     tipo:document.getElementById('a-tipo').value,paro:document.getElementById('a-paro').value,
-    fecha:document.getElementById('a-fecha').value,tec:_selectedTecs[0]||'',tecs:_selectedTecs.length>0?_selectedTecs:[],
+    fecha:document.getElementById('a-fecha').value,tec:(document.getElementById('a-tec')?.value||''),tec2:(document.getElementById('a-tec2')?.value||''),tecs:(()=>{const t1=document.getElementById('a-tec')?.value||'';const t2=document.getElementById('a-tec2')?.value||'';return [t1,t2].filter(Boolean);})(),
     est:'Pendiente',comments:[],locked:false};
   const db=gdb();
   if(isAdm()){const md=gmd(db,mak());obj.id=md.nA++;md.acts.push(obj);svdb(db);rProg();rPanel();
@@ -2278,7 +2285,7 @@ function addAct(){
     db.pending.push({id:Date.now(),tipo:'act',data:obj,nom:curNom(),fecha:hoyS()});
     svdb(db);updateBadges();alert('Actividad enviada al administrador para autorización.');
   }
-  ['a-id','a-desc','a-equipo','a-edificio','a-nivel','a-area'].forEach(id=>document.getElementById(id).value='');updateTecWrap([]);
+  ['a-id','a-desc','a-equipo','a-edificio','a-nivel','a-area'].forEach(id=>document.getElementById(id).value='');// tec selects reset automatically by syncTec
 }
 
 function addInc(){
@@ -2545,12 +2552,11 @@ function importConfig(code){
 // ═══ HELPERS ═══
 function estB(e){const m={Completada:'bG',Pendiente:'b0','En progreso':'bA',Realizada:'bG','Pendiente Cerrar OT':'bP'};return `<span class="bdg ${m[e]||'b0'}">${e}</span>`}
 function syncTec(){
-  // For multi-tec picker: just refresh display
   const tecs=gdb().tecs;
-  // Legacy single select compatibility (for inc form etc)
-  const el=document.getElementById('a-tec');
-  if(el)el.innerHTML=tecs.length===0?'<option value="">— sin técnicos —</option>':tecs.map(t=>`<option value="${t.nom}">${t.nom} (${t.esp})</option>`).join('');
-  updateTecWrap([]);
+  const opts=tecs.length===0?'<option value="">— sin técnicos —</option>':tecs.map(t=>`<option value="${t.nom}">${t.nom} (${t.esp})</option>`).join('');
+  const el=document.getElementById('a-tec');if(el)el.innerHTML=opts;
+  const el2=document.getElementById('a-tec2');
+  if(el2)el2.innerHTML='<option value="">— Ninguno —</option>'+tecs.map(t=>`<option value="${t.nom}">${t.nom} (${t.esp})</option>`).join('');
 }
 let _selectedTecs=[];
 function updateTecWrap(sel){
@@ -2831,6 +2837,7 @@ function initFirebase(){
         }
         _fbReady = true;
         hideFbLoading();
+        backfillDescEquipo();
         // If session exists and app not yet running, init it
         if(gS() && !document.getElementById('appScreen').style.display.includes('block')){
           try{ initApp(); }catch(e){}
@@ -2885,6 +2892,19 @@ function initFirebase(){
 
 // Start Firebase
 initFirebase();
+
+function backfillDescEquipo(){
+  const db=gdb();let changed=false;
+  Object.values(db.meses).forEach(md=>{
+    (md.acts||[]).forEach(a=>{
+      if(a.equipo&&!a.descEquipo){
+        const d=lookupEquipo(a.equipo);
+        if(d){a.descEquipo=d;changed=true;}
+      }
+    });
+  });
+  if(changed)svdb(db);
+}
 
 </script>
 </body>
