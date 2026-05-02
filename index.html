@@ -424,6 +424,11 @@ tr.selected td{background:#FEF2F2!important}
   <div class="card">
     <div class="ct">Actividades completadas</div>
     <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Historial de actividades marcadas como <b>Completadas</b>, organizadas por mes.</p>
+    <div style="margin-bottom:10px;position:relative">
+      <input type="search" id="term-search" placeholder="🔍  Buscar por nombre, equipo, ID, técnico..." 
+        style="width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--brd2);border-radius:var(--r);background:var(--bg2);color:var(--text);box-sizing:border-box"
+        oninput="filterTerminado(this.value)">
+    </div>
     <div id="terminado-list"></div>
   </div>
 </div>
@@ -2267,8 +2272,6 @@ function renderChart(key){
   chartInst=new Chart(ctx,{type:'bar',
     data:{labels,datasets:[
       {label:'Completadas',data:tecs.map(t=>md.acts.filter(a=>(a.tec===t.nom||(a.tecs&&a.tecs.includes(t.nom)))&&a.est==='Completada').length),backgroundColor:'#1D9E75',borderRadius:4},
-      {label:'En progreso',data:tecs.map(t=>md.acts.filter(a=>(a.tec===t.nom||(a.tecs&&a.tecs.includes(t.nom)))&&a.est==='En progreso').length),backgroundColor:'#BA7517',borderRadius:4},
-      {label:'Pendientes',data:tecs.map(t=>md.acts.filter(a=>(a.tec===t.nom||(a.tecs&&a.tecs.includes(t.nom)))&&a.est==='Pendiente').length),backgroundColor:'#185FA5',borderRadius:4},
     ]},
     options:{animation:false,responsive:true,maintainAspectRatio:false,
       plugins:{legend:{position:'bottom',labels:{font:{size:10},color:'#475569',padding:8}}},
@@ -2276,12 +2279,11 @@ function renderChart(key){
               y:{stacked:true,beginAtZero:true,grid:{color:'rgba(0,0,0,0.06)'},ticks:{color:'#475569',stepSize:1,font:{size:10}}}}}
   });
   document.getElementById('stat-detail').innerHTML=tecs.map(t=>{
-    const my=md.acts.filter(a=>a.tec===t.nom||(a.tecs&&a.tecs.includes(t.nom)));const c=my.filter(a=>a.est==='Completada').length;const tot=my.length;const pct=tot?Math.round(c/tot*100):0;const eM=t.esp==='Mecánico';
+    const c=md.acts.filter(a=>(a.tec===t.nom||(a.tecs&&a.tecs.includes(t.nom)))&&a.est==='Completada').length;const eM=t.esp==='Mecánico';
     return `<div class="ri"><div class="av" style="background:${eM?'var(--Gbg)':'var(--Bbg)'};color:${eM?'var(--Gtxt)':'var(--Btxt)'}">${t.nom.charAt(0)}</div>
       <div style="flex:1;overflow:hidden"><div style="font-size:12px;font-weight:700">${t.nom}</div>
-        <div style="font-size:11px;color:var(--text2)">${c}/${tot} · ${pct}%</div>
-        <div class="pb" style="max-width:140px"><div class="pf" style="width:${pct}%;background:var(--G)"></div></div>
-      </div><span class="bdg bG">${pct}%</span></div>`;
+        <div style="font-size:11px;color:var(--text2)">${c} actividad(es) completada(s)</div>
+      </div><span class="bdg bG">${c}</span></div>`;
   }).join('');
 }
 
@@ -2690,43 +2692,27 @@ function setParo(id,val){
 }
 
 // ─── TERMINADO ────────────────────────────────────────────────────────────
+// rTerminado replaced — see new version above
+
+// ─── TERMINADO SEARCH ────────────────────────────────────────────────────
+let _termAllActs=[];  // cache for search
+
 function rTerminado(){
   const db=gdb();
-  // Gather all completed acts across all months, grouped by month key
   const byMonth={};
+  _termAllActs=[];
   Object.keys(db.meses).sort().reverse().forEach(k=>{
     const md=db.meses[k];
     const comp=(md.acts||[]).filter(a=>a.est==='Completada');
-    if(comp.length>0) byMonth[k]=comp;
+    if(comp.length>0){byMonth[k]=comp;_termAllActs.push(...comp.map(a=>({...a,_mk:k})));}
   });
   const el=document.getElementById('terminado-list');
   if(!el)return;
-  const months=Object.keys(byMonth);
-  if(!months.length){el.innerHTML='<div class="empty">No hay actividades completadas aún.</div>';return;}
-  function paroTag(p){if(!p||p===''||p==='No necesario')return'';const isMol=p.startsWith('Molino');return` <span class="paro-tag${isMol?' mol':p==='Almacén'?' alm':''}">${p}</span>`}
-  el.innerHTML=months.map(k=>{
-    const [y,m]=k.split('-');
-    const label=MESES[parseInt(m)-1]+' '+y;
-    const acts=byMonth[k];
-    const rows=acts.map(a=>`<tr class="trk" style="cursor:pointer" onclick="openTermDetail('${a.id}')">
-      <td>${a.actId||'—'}</td>
-      <td title="${a.desc}">${a.desc}</td>
-      <td>${a.equipo||'—'}</td>
-      <td>${a.tecs&&a.tecs.length?a.tecs.join(', '):(a.tec||'—')}</td>
-      <td>${a.fecha||'—'}</td>
-      <td><span class="bdg bG">Completada</span>${a.locked?' 🔒':''}</td>
-      <td>${paroTag(a.paro)}</td>
-      ${isAdm()?`<td onclick="event.stopPropagation()"><button class="btnXs" style="color:var(--Rtxt)" onclick="elimAct('${a.id}','act')">✕</button></td>`:''}
-    </tr>`).join('');
-    return `<div class="mes-sep">📅 ${label} — ${acts.length} actividad(es)</div>
-    <div class="tw"><table>
-      <thead><tr><th>ID</th><th>Descripción</th><th>Equipo</th><th>Técnico</th><th>Fecha</th><th>Estado</th><th>Paro</th>${isAdm()?'<th></th>':''}</tr></thead>
-      <tbody>${rows}</tbody>
-    </table></div>`;
-  }).join('');
+  const searchEl=document.getElementById('term-search');
+  const q=searchEl?searchEl.value.trim():'';
+  renderTerminado(byMonth,q);
 }
 
-// ─── TERMINADO DETAIL ────────────────────────────────────────────────────
 function openTermDetail(id){
   const db=gdb();let found=null;
   Object.values(db.meses).forEach(md=>{
@@ -2751,9 +2737,61 @@ function openTermDetail(id){
       <div><div style="font-size:10px;color:var(--text2);font-weight:700">PARO</div><div style="font-size:13px">${a.paro||'No necesario'}</div></div>
       ${a.edificio?`<div><div style="font-size:10px;color:var(--text2);font-weight:700">EDIFICIO</div><div style="font-size:13px">${a.edificio}</div></div>`:''}
       ${a.nivel?`<div><div style="font-size:10px;color:var(--text2);font-weight:700">NIVEL</div><div style="font-size:13px">${a.nivel}</div></div>`:''}
-    </div>
-    ${cmts}`;
+    </div>${cmts}`;
   openModal();
+}
+
+function filterTerminado(q){
+  const db=gdb();const byMonth={};
+  Object.keys(db.meses).sort().reverse().forEach(k=>{
+    const md=db.meses[k];
+    const comp=(md.acts||[]).filter(a=>a.est==='Completada');
+    if(comp.length)byMonth[k]=comp;
+  });
+  renderTerminado(byMonth,q);
+}
+
+function renderTerminado(byMonth,q){
+  const el=document.getElementById('terminado-list');if(!el)return;
+  const months=Object.keys(byMonth);
+  if(!months.length){el.innerHTML='<div class="empty">No hay actividades completadas aún.</div>';return;}
+  const ql=(q||'').toLowerCase().trim();
+  function matchAct(a){
+    if(!ql)return true;
+    return [a.actId,a.desc,a.equipo,a.descEquipo,a.area,a.tec,a.fecha,a.paro,
+            ...(a.tecs||[]),(a.comments||[]).map(c=>c.txt).join(' ')]
+      .filter(Boolean).some(v=>String(v).toLowerCase().includes(ql));
+  }
+  function paroTag(p){if(!p||p===''||p==='No necesario')return'';const isMol=p.startsWith('Molino');return` <span class="paro-tag${isMol?' mol':p==='Almacén'?' alm':''}"> ${p}</span>`}
+  let totalMatches=0;
+  const parts=months.map(k=>{
+    const [y,m]=k.split('-');
+    const label=MESES[parseInt(m)-1]+' '+y;
+    const acts=byMonth[k].filter(matchAct);
+    if(!acts.length)return'';
+    totalMatches+=acts.length;
+    const rows=acts.map(a=>`<tr class="trk" style="cursor:pointer" onclick="openTermDetail('${a.id}')">
+      <td>${a.actId||'—'}</td>
+      <td title="${a.desc}">${ql?a.desc.replace(new RegExp('('+ql.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<mark style="background:var(--goldLight,#FEF3C7);border-radius:2px">$1</mark>'):a.desc}</td>
+      <td>${a.equipo||'—'}${a.descEquipo?`<div style="font-size:10px;color:var(--Gtxt)">${a.descEquipo}</div>`:''}</td>
+      <td>${a.tecs&&a.tecs.length?a.tecs.join(', '):(a.tec||'—')}</td>
+      <td>${a.fecha||'—'}</td>
+      <td><span class="bdg bG">Completada</span></td>
+      <td>${paroTag(a.paro)}</td>
+      ${isAdm()?`<td onclick="event.stopPropagation()"><button class="btnXs" style="color:var(--Rtxt)" onclick="elimAct('${a.id}','act')">✕</button></td>`:''}
+    </tr>`).join('');
+    return `<div class="card"><div class="mes-sep">📅 ${label} — ${acts.length} actividad(es)</div>
+    <div class="tw"><table>
+      <thead><tr><th>ID</th><th>Descripción</th><th>Equipo</th><th>Técnico</th><th>Fecha</th><th>Estado</th><th>Paro</th>${isAdm()?'<th></th>':''}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div></div>`;
+  }).filter(Boolean);
+  if(!parts.length){
+    el.innerHTML=`<div class="empty">Sin resultados para "<b>${ql}</b>".</div>`;
+  } else {
+    el.innerHTML=(ql?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px">🔍 ${totalMatches} resultado(s) para "<b>${ql}</b>"</div>`:'')
+      +parts.join('');
+  }
 }
 
 // ─── INC FORM TOGGLE ─────────────────────────────────────────────────────
