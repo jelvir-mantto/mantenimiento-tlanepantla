@@ -279,7 +279,7 @@ tr.selected td{background:#FEF2F2!important}
   <div id="p-prog"></div>
   <div class="card"><div class="ct">Esta semana</div><div class="wk-grid" id="wk-cal"></div></div>
   <div class="card"><div class="ct" id="p-hoy-ct">Actividades de hoy</div><div id="p-hoy"></div></div>
-  <div class="card"><div class="ct">Incidencias</div><div id="p-incs"></div></div>
+  <div class="card"><div class="ct">Pendientes</div><div id="p-incs"></div></div>
 </div>
 
 <!-- PROGRAMACIÓN -->
@@ -316,7 +316,7 @@ tr.selected td{background:#FEF2F2!important}
     <div class="fr" style="margin-top:8px;gap:10px;font-size:11px;color:var(--text2)">
       <span><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--G);margin-right:2px"></span>Mecánico</span>
       <span><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--B);margin-right:2px"></span>Eléctrico</span>
-      <span><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--A);margin-right:2px"></span>Incidencia</span>
+      <span><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--A);margin-right:2px"></span>Pendiente</span>
     </div>
   </div>
   <div class="card">
@@ -346,7 +346,7 @@ tr.selected td{background:#FEF2F2!important}
 <div class="pnl" id="pnl-incidencias">
   <div class="card" style="padding:0;overflow:hidden">
     <div style="padding:11px 13px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;touch-action:manipulation" onclick="toggleIncForm(this)">
-      <div class="ct" style="margin-bottom:0">Registrar incidencia</div>
+      <div class="ct" style="margin-bottom:0">Registrar pendiente</div>
       <span id="inc-form-ico" style="font-size:18px;color:var(--text2);transition:transform .2s">＋</span>
     </div>
     <div id="inc-form-body" style="display:none;padding:0 13px 13px">
@@ -363,10 +363,10 @@ tr.selected td{background:#FEF2F2!important}
     <div class="fg" style="margin-bottom:9px"><label>Fotografía (opcional)</label><input type="file" id="i-foto" accept="image/*" multiple>
       <div id="i-foto-prev-wrap" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
       <div style="font-size:11px;color:var(--text2);margin-top:3px">Puedes seleccionar varias fotos. Las imágenes se comprimen automáticamente.</div></div>
-    <button class="btn btnP w100" id="btnAddInc">Registrar incidencia</button>
+    <button class="btn btnP w100" id="btnAddInc">Registrar pendiente</button>
     </div>
   </div>
-  <div class="card"><div class="ct">Incidencias del mes</div><div id="inc-list"></div></div>
+  <div class="card"><div class="ct">Pendientes</div><div id="inc-list"></div></div>
 </div>
 
 <!-- GUARDIAS -->
@@ -1676,22 +1676,21 @@ function buildNav(admin){
   // Notificaciones y Mensajes solo como íconos en header — no en tabs ni bnav
   const adminTabs=[
     {id:'panel',lbl:'Panel',ico:'⊞'},{id:'prog',lbl:'Prog.',ico:'📅'},
-    {id:'terminado',lbl:'Terminado',ico:'✅'},
-    {id:'incidencias',lbl:'Pendientes',ico:'📋'},{id:'guardias',lbl:'Guardias',ico:'🔒'},
+    {id:'incidencias',lbl:'Pendientes',ico:'📋'},{id:'terminado',lbl:'Terminado',ico:'✅'},
+    {id:'guardias',lbl:'Guardias',ico:'🔒'},
     {id:'visitas',lbl:'Visitas',ico:'🏭'},{id:'personal',lbl:'Personal',ico:'👥'},
     {id:'usuarios',lbl:'Usuarios',ico:'👤'},{id:'stats',lbl:'Stats',ico:'📊'},
   ];
   const tecTabs=[
     {id:'panel',lbl:'Panel',ico:'⊞'},{id:'prog',lbl:'Prog.',ico:'📅'},
     {id:'terminado',lbl:'Terminado',ico:'✅'},
-    {id:'incidencias',lbl:'Pendientes',ico:'📋'},{id:'guardias',lbl:'Guardias',ico:'🔒'},
-    {id:'visitas',lbl:'Visitas',ico:'🏭'},
+    {id:'guardias',lbl:'Guardias',ico:'🔒'},
   ];
   const tabs=admin?adminTabs:tecTabs;
   document.getElementById('tabsBar').innerHTML=tabs.map(t=>`<button class="tab${t.id==='panel'?' on':''}" data-tab="${t.id}">${t.lbl}</button>`).join('');
   document.getElementById('bnavInner').innerHTML=tabs.slice(0,5).map(t=>`<button class="bi${t.id==='panel'?' on':''}" data-tab="${t.id}"><span class="bico">${t.ico}</span>${t.lbl}</button>`).join('');
   document.querySelectorAll('.tab,.bi').forEach(b=>b.addEventListener('click',()=>sw(b.dataset.tab)));
-  if(!admin)['pnl-personal','pnl-usuarios','pnl-stats'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none'});
+  if(!admin)['pnl-personal','pnl-usuarios','pnl-stats','pnl-incidencias','pnl-visitas'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none'});
 }
 
 function sw(t){
@@ -1723,7 +1722,7 @@ function rPanel(){
     pendEl.innerHTML=`<div class="card" style="border-color:var(--A)">
       <div class="ct" style="color:var(--Atxt)">Pendientes de autorización (${db.pending.length})</div>
       ${db.pending.map(p=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--brd)">
-        <div style="flex:1;overflow:hidden"><div style="font-size:12px;font-weight:700">${p.tipo==='act'?'Actividad':'Incidencia'}: ${p.data.desc}</div>
+        <div style="flex:1;overflow:hidden"><div style="font-size:12px;font-weight:700">${p.tipo==='act'?'Actividad':'Pendiente'}: ${p.data.desc}</div>
         <div style="font-size:11px;color:var(--text2)">Por: ${p.nom} · ${p.fecha}</div></div>
         <button class="btn btnP btnSm" onclick="aprobar('${p.id}')">Aprobar</button>
         <button class="btn btnD btnSm" onclick="rechazar('${p.id}')">Rechazar</button>
@@ -1756,9 +1755,9 @@ function rPanel(){
   // NOTIFS
   let ntf='';
   const iP=md.incs.filter(i=>i.est==='Pendiente').length;
-  if(iP>0)ntf+=`<div class="ntf ntfW">${iP} incidencia(s) sin iniciar.</div>`;
+  if(iP>0)ntf+=`<div class="ntf ntfW">${iP} pendiente(s) sin iniciar.</div>`;
   const crit=md.incs.filter(i=>i.alarma==='Crítico'&&i.est!=='Realizada').length;
-  if(crit>0)ntf+=`<div class="ntf ntfR">${crit} incidencia(s) en nivel CRÍTICO.</div>`;
+  if(crit>0)ntf+=`<div class="ntf ntfR">${crit} pendiente(s) en nivel CRÍTICO.</div>`;
   document.getElementById('p-notifs').innerHTML=ntf;
   updateBadges();
   // PROGRESS
@@ -1803,7 +1802,7 @@ function rPanel(){
       <span class="bdg ${a.est==='Completada'||a.est==='Realizada'?'bG':a.est==='En progreso'?'bA':'b0'}">${a.est}</span>
     </div>`).join('');
   // INCS
-  document.getElementById('p-incs').innerHTML=md.incs.length===0?`<div class="empty">Sin incidencias este mes</div>`
+  document.getElementById('p-incs').innerHTML=md.incs.length===0?`<div class="empty">Sin pendientes</div>`
     :md.incs.slice(0,4).map(i=>`<div class="ri" style="padding:6px 0">
       <div style="flex:1;overflow:hidden"><div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.desc}</div>
       <div style="font-size:11px;color:var(--text2)">${i.orig||'—'} · ${i.maq||i.area||'—'}${i.alarma?` · <span style="color:${i.alarma==='Crítico'?'var(--Rtxt)':i.alarma==='Precaución'?'var(--Atxt)':'var(--Gtxt)'}">${i.alarma}</span>`:''}</div></div>
@@ -2082,12 +2081,23 @@ function rProg(){
     ch+=`<div class="cc" style="${isH?'border:1.5px solid var(--G)':''}" onclick="openDayModal('${ds}')"><div class="dn" style="${isH?'color:var(--G)':''}">${d}</div>${dots}</div>`;
   }
   document.getElementById('cal').innerHTML=ch;
-  const filtered=((_paroFilt
+  // Collect all pending acts from ALL months (not just current)
+  const curKey=mak();
+  let allPending=[];
+  Object.keys(db.meses).sort().forEach(k=>{
+    const mActs=db.meses[k].acts||[];
+    mActs.forEach(a=>{
+      if(a.est!=='Completada'&&a.est!=='Pendiente Cerrar OT'){
+        allPending.push({...a,_fromKey:k});
+      }
+    });
+  });
+  const filtered=_paroFilt
     ? (_paroFilt==='__nec__'
-        ? md.acts.filter(a=>!a.paro||a.paro===''||a.paro==='No necesario')
-        : md.acts.filter(a=>a.paro===_paroFilt))
-    : md.acts)).filter(a=>a.est!=='Completada'&&a.est!=='Pendiente Cerrar OT');
-  document.getElementById('act-count').textContent=`(${filtered.length}/${md.acts.length})`;
+        ? allPending.filter(a=>!a.paro||a.paro===''||a.paro==='No necesario')
+        : allPending.filter(a=>a.paro===_paroFilt))
+    : allPending;
+  document.getElementById('act-count').textContent=`(${filtered.length})`;
   function paroTag(p){if(!p||p==='No necesario')return '<span style="font-size:10px;color:var(--text3)">—</span>';const isMol=p.startsWith('Molino');return `<span class="paro-tag${isMol?' molino':p==='Almacén'?' alm':''}">${p}</span>`}
   document.getElementById('act-list').innerHTML=filtered.length===0?`<div class="empty">Sin actividades${_paroFilt?' con ese filtro':''}.</div>`
     :`<table><thead><tr>${isAdm()?'<th class="chk-col"><input type="checkbox" id="chk-all" onchange="toggleAllSel(this)"></th>':''}<th>ID</th><th>Descripción</th><th>Técnico</th><th>Fecha</th><th>Estado</th><th>Paro prog.</th>${isAdm()?'<th></th>':''}</tr></thead>
@@ -2107,10 +2117,17 @@ function rProg(){
 // ═══ INCIDENCIAS ═══
 function rInc(){
   syncTecInc();
-  const db=gdb();const md=gmd(db,mak());const nom=isAdm()?null:curNom();
-  const list=isAdm()?md.incs:md.incs.filter(i=>i.tecAsig===nom||i.tec===nom||!i.tecAsig);
+  const db=gdb();const nom=isAdm()?null:curNom();
+  // Collect all non-completed incs from ALL months (carry-over pending)
+  let allIncs=[];
+  Object.keys(db.meses).sort().forEach(k=>{
+    (db.meses[k].incs||[]).forEach(i=>{
+      if(i.est!=='Realizada')allIncs.push(i);
+    });
+  });
+  const list=isAdm()?allIncs:allIncs.filter(i=>i.tecAsig===nom||i.tec===nom||!i.tecAsig);
   const el=document.getElementById('inc-list');
-  if(list.length===0){el.innerHTML=`<div class="empty">Sin incidencias este mes.</div>`;return}
+  if(list.length===0){el.innerHTML='<div class="empty">Sin pendientes.</div>';return}
   el.innerHTML=list.map(i=>{
     const bCls=i.est==='Realizada'?'bG':i.est==='En progreso'?'bB':'bA';
     const canAct=isAdm()||(i.tecAsig===nom||i.tec===nom);const locked=i.locked;
@@ -2147,11 +2164,11 @@ function rInc(){
 function incEst(id,val){
   const db=gdb();const md=gmd(db,mak());const i=md.incs.find(x=>String(x.id)===String(id));
   if(!i)return;
-  if(i.locked&&!isAdm()){alert('Solo el administrador puede reabrir incidencias cerradas.');return}
+  if(i.locked&&!isAdm()){alert('Solo el administrador puede reabrir pendientes cerrados.');return}
   const prev=i.est;i.est=val;
   if(val==='Realizada'&&!isAdm())i.locked=true;
   svdb(db);
-  if(!isAdm()&&prev!==val)crearNotifAdmins(curNom(),`✅ ${curNom()} cambió incidencia "${i.desc?.slice(0,40)||''}" a: ${val}`,id);
+  if(!isAdm()&&prev!==val)crearNotifAdmins(curNom(),`✅ ${curNom()} cambió pendiente "${i.desc?.slice(0,40)||''}" a: ${val}`,id);
   rInc();rPanel();
 }
 
@@ -2162,7 +2179,7 @@ function asignarInc(id){
   i.fechaProg=document.getElementById('ifec-'+id)?.value||'';
   // Notify tech
   const nu=db.users.find(u=>u.nom===i.tecAsig);
-  if(nu)crearNotif(nu.username,'Administrador',`⚠️ Incidencia asignada: "${i.desc?.slice(0,50)||'Nueva incidencia'}" para el ${i.fechaProg||'por definir'}`,id);
+  if(nu)crearNotif(nu.username,'Administrador',`⚠️ Pendiente asignado: "${i.desc?.slice(0,50)||'Nuevo pendiente'}" para el ${i.fechaProg||'por definir'}`,id);
   svdb(db);rInc();rPanel();rProg();
 }
 
@@ -2249,9 +2266,9 @@ function renderChart(key){
   const ctx=document.getElementById('statsChart');
   chartInst=new Chart(ctx,{type:'bar',
     data:{labels,datasets:[
-      {label:'Completadas',data:tecs.map(t=>md.acts.filter(a=>a.tec===t.nom&&a.est==='Completada').length),backgroundColor:'#1D9E75',borderRadius:4},
-      {label:'En progreso',data:tecs.map(t=>md.acts.filter(a=>a.tec===t.nom&&a.est==='En progreso').length),backgroundColor:'#BA7517',borderRadius:4},
-      {label:'Pendientes',data:tecs.map(t=>md.acts.filter(a=>a.tec===t.nom&&a.est==='Pendiente').length),backgroundColor:'#185FA5',borderRadius:4},
+      {label:'Completadas',data:tecs.map(t=>md.acts.filter(a=>(a.tec===t.nom||(a.tecs&&a.tecs.includes(t.nom)))&&a.est==='Completada').length),backgroundColor:'#1D9E75',borderRadius:4},
+      {label:'En progreso',data:tecs.map(t=>md.acts.filter(a=>(a.tec===t.nom||(a.tecs&&a.tecs.includes(t.nom)))&&a.est==='En progreso').length),backgroundColor:'#BA7517',borderRadius:4},
+      {label:'Pendientes',data:tecs.map(t=>md.acts.filter(a=>(a.tec===t.nom||(a.tecs&&a.tecs.includes(t.nom)))&&a.est==='Pendiente').length),backgroundColor:'#185FA5',borderRadius:4},
     ]},
     options:{animation:false,responsive:true,maintainAspectRatio:false,
       plugins:{legend:{position:'bottom',labels:{font:{size:10},color:'#475569',padding:8}}},
@@ -2259,7 +2276,7 @@ function renderChart(key){
               y:{stacked:true,beginAtZero:true,grid:{color:'rgba(0,0,0,0.06)'},ticks:{color:'#475569',stepSize:1,font:{size:10}}}}}
   });
   document.getElementById('stat-detail').innerHTML=tecs.map(t=>{
-    const my=md.acts.filter(a=>a.tec===t.nom);const c=my.filter(a=>a.est==='Completada').length;const tot=my.length;const pct=tot?Math.round(c/tot*100):0;const eM=t.esp==='Mecánico';
+    const my=md.acts.filter(a=>a.tec===t.nom||(a.tecs&&a.tecs.includes(t.nom)));const c=my.filter(a=>a.est==='Completada').length;const tot=my.length;const pct=tot?Math.round(c/tot*100):0;const eM=t.esp==='Mecánico';
     return `<div class="ri"><div class="av" style="background:${eM?'var(--Gbg)':'var(--Bbg)'};color:${eM?'var(--Gtxt)':'var(--Btxt)'}">${t.nom.charAt(0)}</div>
       <div style="flex:1;overflow:hidden"><div style="font-size:12px;font-weight:700">${t.nom}</div>
         <div style="font-size:11px;color:var(--text2)">${c}/${tot} · ${pct}%</div>
@@ -2302,10 +2319,10 @@ function addInc(){
   const proceed=(fotos)=>{
     obj.fotos=fotos&&fotos.length?fotos:null;obj.foto=obj.fotos?obj.fotos[0]:null;
     if(isAdm()){const md=gmd(db,mak());obj.id=md.nI++;md.incs.push(obj);svdb(db);rInc();rPanel();rProg();
-      if(obj.tecAsig){const nu=db.users.find(u=>u.nom===obj.tecAsig);if(nu)crearNotif(nu.username,'Administrador',`⚠️ Incidencia asignada: "${obj.desc.slice(0,50)}"`,obj.id)}
+      if(obj.tecAsig){const nu=db.users.find(u=>u.nom===obj.tecAsig);if(nu)crearNotif(nu.username,'Administrador',`⚠️ Pendiente asignado: "${obj.desc.slice(0,50)}"`,obj.id)}
     } else {
       db.pending.push({id:Date.now(),tipo:'inc',data:obj,nom:curNom(),fecha:hoyS()});
-      svdb(db);updateBadges();alert('Incidencia enviada al administrador para autorización.');
+      svdb(db);updateBadges();alert('Pendiente enviado al administrador para autorización.');
     }
     ['i-ot','i-id','i-orig','i-maq','i-area','i-val','i-desc'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('i-foto').value='';document.getElementById('i-foto-prev').style.display='none';
@@ -2691,17 +2708,15 @@ function rTerminado(){
     const [y,m]=k.split('-');
     const label=MESES[parseInt(m)-1]+' '+y;
     const acts=byMonth[k];
-    const rows=acts.map(a=>`<tr>
+    const rows=acts.map(a=>`<tr class="trk" style="cursor:pointer" onclick="openTermDetail('${a.id}')">
       <td>${a.actId||'—'}</td>
       <td title="${a.desc}">${a.desc}</td>
       <td>${a.equipo||'—'}</td>
-      <td>${a.tec||'—'}</td>
+      <td>${a.tecs&&a.tecs.length?a.tecs.join(', '):(a.tec||'—')}</td>
       <td>${a.fecha||'—'}</td>
       <td><span class="bdg bG">Completada</span>${a.locked?' 🔒':''}</td>
-      <td onclick="event.stopPropagation()">${isAdm()?`<select style="font-size:10px;padding:2px 4px;border:0.5px solid var(--brd2);border-radius:4px;background:var(--bg2);color:var(--text);width:100%;max-width:90px" onchange="setParo('${a.id}',this.value)">
-        ${['','Molino A','Molino B','Molino C','Almacén','Paro General','Otro'].map(p=>`<option value="${p}"${(a.paro||'')=== p?' selected':''}>${p||'No nec.'}</option>`).join('')}
-      </select>`:paroTag(a.paro)}</td>
-      ${isAdm()?`<td><button class="btnXs" style="color:var(--Rtxt)" onclick="elimAct('${a.id}','act')">✕</button></td>`:''}
+      <td>${paroTag(a.paro)}</td>
+      ${isAdm()?`<td onclick="event.stopPropagation()"><button class="btnXs" style="color:var(--Rtxt)" onclick="elimAct('${a.id}','act')">✕</button></td>`:''}
     </tr>`).join('');
     return `<div class="mes-sep">📅 ${label} — ${acts.length} actividad(es)</div>
     <div class="tw"><table>
@@ -2709,6 +2724,36 @@ function rTerminado(){
       <tbody>${rows}</tbody>
     </table></div>`;
   }).join('');
+}
+
+// ─── TERMINADO DETAIL ────────────────────────────────────────────────────
+function openTermDetail(id){
+  const db=gdb();let found=null;
+  Object.values(db.meses).forEach(md=>{
+    const a=(md.acts||[]).find(x=>String(x.id)===String(id));
+    if(a)found=a;
+  });
+  if(!found)return;
+  const a=found;
+  document.getElementById('gModalTitle').textContent=a.actId?`${a.actId} — ${a.desc}`:a.desc||'Actividad';
+  const tecs=a.tecs&&a.tecs.length?a.tecs.join(', '):(a.tec||'—');
+  const cmts=a.comments&&a.comments.length
+    ?`<div style="margin-top:10px"><div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:5px">NOTAS / COMENTARIOS</div>
+      ${a.comments.map(c=>`<div class="cmt"><span class="cmt-who">${c.nom}</span><span class="cmt-d"> ${c.fecha}</span><br>${c.txt}</div>`).join('')}</div>`
+    :`<div style="margin-top:10px;font-size:12px;color:var(--text3)">Sin comentarios registrados.</div>`;
+  document.getElementById('gModalBody').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div><div style="font-size:10px;color:var(--text2);font-weight:700">DESCRIPCIÓN</div><div style="font-size:13px">${a.desc||'—'}</div></div>
+      <div><div style="font-size:10px;color:var(--text2);font-weight:700">EQUIPO</div><div style="font-size:13px">${a.equipo||'—'}${a.descEquipo?`<div style="font-size:11px;color:var(--Gtxt)">${a.descEquipo}</div>`:''}</div></div>
+      <div><div style="font-size:10px;color:var(--text2);font-weight:700">TÉCNICO(S)</div><div style="font-size:13px">${tecs}</div></div>
+      <div><div style="font-size:10px;color:var(--text2);font-weight:700">FECHA</div><div style="font-size:13px">${a.fecha||'—'}</div></div>
+      <div><div style="font-size:10px;color:var(--text2);font-weight:700">ÁREA</div><div style="font-size:13px">${a.area||'—'}</div></div>
+      <div><div style="font-size:10px;color:var(--text2);font-weight:700">PARO</div><div style="font-size:13px">${a.paro||'No necesario'}</div></div>
+      ${a.edificio?`<div><div style="font-size:10px;color:var(--text2);font-weight:700">EDIFICIO</div><div style="font-size:13px">${a.edificio}</div></div>`:''}
+      ${a.nivel?`<div><div style="font-size:10px;color:var(--text2);font-weight:700">NIVEL</div><div style="font-size:13px">${a.nivel}</div></div>`:''}
+    </div>
+    ${cmts}`;
+  openModal();
 }
 
 // ─── INC FORM TOGGLE ─────────────────────────────────────────────────────
