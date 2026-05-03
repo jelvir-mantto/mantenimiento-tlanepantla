@@ -296,7 +296,8 @@ tr.selected td{background:#FEF2F2!important}
       <span id="add-act-ico" style="font-size:18px;color:var(--text2);transition:transform .2s">＋</span>
     </div>
     <div id="add-act-body" style="display:none;padding:0 13px 13px">
-    <div class="g2" style="margin-bottom:7px"><div class="fg"><label>ID</label><input id="a-id" type="text" placeholder="OT-001"></div><div class="fg"><label>Equipo</label><input id="a-equipo" type="text" placeholder="Molino 1"></div></div>
+    <div class="g2" style="margin-bottom:7px"><div class="fg"><label>ID</label><input id="a-id" type="text" placeholder="OT-001"></div><div class="fg"><label>Equipo</label><input id="a-equipo" type="text" placeholder="Molino 1" oninput="const d=lookupEquipo(this.value);const el=document.getElementById('a-desc-equipo');el.textContent=d;el.style.display=d?'block':'none'"></div></div>
+    <div id="a-desc-equipo" style="display:none;font-size:12px;color:var(--Gtxt);font-weight:600;padding:4px 8px;background:var(--Gbg);border-radius:var(--r);margin-bottom:4px">📦 </div>
     <div class="fg" style="margin-bottom:7px"><label>Descripción</label><input id="a-desc" type="text" placeholder="Lubricación rodamientos..."></div>
     <div class="g3" style="margin-bottom:7px"><div class="fg"><label>Edificio</label><input id="a-edificio" type="text" placeholder="Nave A"></div><div class="fg"><label>Nivel</label><input id="a-nivel" type="text" placeholder="Piso 1"></div><div class="fg"><label>Área</label><input id="a-area" type="text" placeholder="Molienda"></div></div>
     <div class="g3" style="margin-bottom:7px">
@@ -2292,7 +2293,7 @@ function addAct(){
   const desc=document.getElementById('a-desc').value.trim();
   if(!desc){alert('Completa la descripción');return}
   const obj={id:Date.now(),actId:document.getElementById('a-id').value.trim(),desc,
-    equipo:document.getElementById('a-equipo').value.trim(),edificio:document.getElementById('a-edificio').value.trim(),
+    equipo:document.getElementById('a-equipo').value.trim(),descEquipo:lookupEquipo(document.getElementById('a-equipo').value.trim()),edificio:document.getElementById('a-edificio').value.trim(),
     nivel:document.getElementById('a-nivel').value.trim(),area:document.getElementById('a-area').value.trim(),
     tipo:document.getElementById('a-tipo').value,paro:document.getElementById('a-paro').value,
     fecha:document.getElementById('a-fecha').value,tec:(document.getElementById('a-tec')?.value||''),tec2:(document.getElementById('a-tec2')?.value||''),tecs:(()=>{const t1=document.getElementById('a-tec')?.value||'';const t2=document.getElementById('a-tec2')?.value||'';return [t1,t2].filter(Boolean);})(),
@@ -2304,7 +2305,7 @@ function addAct(){
     db.pending.push({id:Date.now(),tipo:'act',data:obj,nom:curNom(),fecha:hoyS()});
     svdb(db);updateBadges();alert('Actividad enviada al administrador para autorización.');
   }
-  ['a-id','a-desc','a-equipo','a-edificio','a-nivel','a-area'].forEach(id=>document.getElementById(id).value='');// tec selects reset automatically by syncTec
+  ['a-id','a-desc','a-equipo','a-edificio','a-nivel','a-area'].forEach(id=>document.getElementById(id).value='');const _ade=document.getElementById('a-desc-equipo');if(_ade){_ade.textContent='';_ade.style.display='none';}// tec selects reset automatically by syncTec
 }
 
 function addInc(){
