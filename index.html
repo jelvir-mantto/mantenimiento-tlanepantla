@@ -2714,12 +2714,19 @@ function rTerminado(){
   renderTerminado(byMonth,q);
 }
 
-function openTermDetail(id){
+function openTermDetail(id,mk){
   const db=gdb();let found=null;
-  Object.values(db.meses).forEach(md=>{
-    const a=(md.acts||[]).find(x=>String(x.id)===String(id));
-    if(a)found=a;
-  });
+  if(mk&&db.meses[mk]){
+    // Search in the exact month first (avoids ID collisions between months)
+    found=(db.meses[mk].acts||[]).find(x=>String(x.id)===String(id))||null;
+  }
+  if(!found){
+    // Fallback: search all months, stop at first match
+    for(const md of Object.values(db.meses)){
+      const a=(md.acts||[]).find(x=>String(x.id)===String(id));
+      if(a){found=a;break;}
+    }
+  }
   if(!found)return;
   const a=found;
   document.getElementById('gModalTitle').textContent=a.actId?`${a.actId} — ${a.desc}`:a.desc||'Actividad';
@@ -2771,7 +2778,7 @@ function renderTerminado(byMonth,q){
     const acts=byMonth[k].filter(matchAct);
     if(!acts.length)return'';
     totalMatches+=acts.length;
-    const rows=acts.map(a=>`<tr class="trk" style="cursor:pointer" onclick="openTermDetail('${a.id}')">
+    const rows=acts.map(a=>`<tr class="trk" style="cursor:pointer" onclick="openTermDetail('${a.id}','${a._mk}')">
       <td>${a.actId||'—'}</td>
       <td title="${a.desc}">${ql?a.desc.replace(new RegExp('('+ql.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<mark style="background:var(--goldLight,#FEF3C7);border-radius:2px">$1</mark>'):a.desc}</td>
       <td>${a.equipo||'—'}${a.descEquipo?`<div style="font-size:10px;color:var(--Gtxt)">${a.descEquipo}</div>`:''}</td>
