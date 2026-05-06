@@ -1523,6 +1523,7 @@ function gdb(){
   if(!db.pending) db.pending=[]; else db.pending=toArr(db.pending);
   if(!db.notifs)  db.notifs=[];  else db.notifs=toArr(db.notifs);
   if(!db.msgs)    db.msgs=[];    else db.msgs=toArr(db.msgs);
+  if(!db.visitas) db.visitas=[]; else db.visitas=toArr(db.visitas);
   // ── Critically: normalize acts/incs inside EVERY month ──────────────────
   // Firebase converts arrays to {0:{},1:{}} objects — fix them all here
   // so every function that calls gdb() gets real arrays, not objects
@@ -1900,8 +1901,14 @@ function rVisitas(){
   el.innerHTML=Object.keys(byMonth).sort().reverse().map(k=>{
     const parts=k.split('-');
     const label=MESES[parseInt(parts[1])-1]+' '+parts[0];
-    const rows=byMonth[k].map(v=>'<tr><td>'+v.fecha+'</td><td>'+v.tec+'</td><td>'+v.motivo+'</td><td>'+(v.area||'—')+'</td><td>'+(v.paro||0)+' hrs</td>'
-      +(isAdm()?'<td><button class="btnXs" style="color:var(--Rtxt)" onclick="elimVisita(this.dataset.vid)" data-vid="'+v.id+'">✕</button></td>':'')+'</tr>').join('');
+    const rows=byMonth[k].map(v=>'<tr>'
+      +'<td>'+v.fecha+'</td><td>'+v.tec+'</td><td style="max-width:180px;white-space:normal">'+v.motivo+'</td>'
+      +'<td>'+(v.area||'—')+'</td><td>'+(v.paro||0)+' hrs</td>'
+      +(isAdm()?'<td style="white-space:nowrap">'
+        +'<button class="btnXs" style="color:var(--Btxt);margin-right:3px" data-vid="'+v.id+'" onclick="editVisita(this.dataset.vid)">✎</button>'
+        +'<button class="btnXs" style="color:var(--Rtxt)" data-vid="'+v.id+'" onclick="elimVisita(this.dataset.vid)">✕</button>'
+        +'</td>':'')
+      +'</tr>').join('');
     return '<div class="card"><div class="mes-sep">📅 '+label+' — '+byMonth[k].length+' visita(s)</div>'
       +'<div class="tw"><table><thead><tr><th>Fecha</th><th>Técnico</th><th>Motivo</th><th>Área</th><th>T.Paro</th>'+(isAdm()?'<th></th>':'')+'</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   }).join('');
@@ -1921,6 +1928,41 @@ function addVisita(){
   const fields=['v-motivo','v-paro','v-area'];
   fields.forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   rVisitas();
+}
+
+function editVisita(id){
+  const db=gdb();
+  const v=db.visitas.find(x=>x.id===id);
+  if(!v)return;
+  const tOpts=db.tecs.map(t=>`<option value="${t.nom}"${t.nom===v.tec?' selected':''}>${t.nom}</option>`).join('');
+  document.getElementById('gModalTitle').textContent='Editar visita';
+  document.getElementById('gModalBody').innerHTML=`
+    <div class="fg" style="margin-bottom:8px"><label>Técnico</label>
+      <select id="ev-tec">${tOpts}</select></div>
+    <div class="g2" style="margin-bottom:8px">
+      <div class="fg"><label>Fecha</label><input id="ev-fecha" type="date" value="${v.fecha}"></div>
+      <div class="fg"><label>T. Paro (hrs)</label><input id="ev-paro" type="number" step="0.5" min="0" value="${v.paro||0}"></div>
+    </div>
+    <div class="fg" style="margin-bottom:8px"><label>Motivo</label>
+      <input id="ev-motivo" type="text" value="${v.motivo}"></div>
+    <div class="fg" style="margin-bottom:12px"><label>Área</label>
+      <input id="ev-area" type="text" value="${v.area||''}"></div>
+    <button class="btn btnP w100" onclick="updateVisita('${id}')">Guardar cambios</button>`;
+  openModal();
+}
+
+function updateVisita(id){
+  const tec=document.getElementById('ev-tec')?.value||'';
+  const fecha=document.getElementById('ev-fecha')?.value||'';
+  const motivo=document.getElementById('ev-motivo')?.value.trim()||'';
+  const paro=document.getElementById('ev-paro')?.value||'0';
+  const area=document.getElementById('ev-area')?.value.trim()||'';
+  if(!tec||!fecha||!motivo){alert('Completa técnico, fecha y motivo');return;}
+  const db=gdb();
+  const v=db.visitas.find(x=>x.id===id);
+  if(!v)return;
+  v.tec=tec;v.fecha=fecha;v.motivo=motivo;v.paro=parseFloat(paro)||0;v.area=area;
+  svdb(db);closeModal();rVisitas();
 }
 
 function elimVisita(id){
@@ -2676,6 +2718,7 @@ document.getElementById('btnNotifBell').addEventListener('click',()=>sw('notific
 document.getElementById('btnMsgBell').addEventListener('click',()=>sw('mensajes'));
 document.getElementById('showImport').addEventListener('click',()=>{const a=document.getElementById('importArea');a.style.display=a.style.display==='none'?'block':'none'});
 document.getElementById('btnImport').addEventListener('click',()=>importConfig(document.getElementById('importCode').value));
+document.getElementById('btnAddVisita')?.addEventListener('click', addVisita);
 document.getElementById('btnMarkAllRead').addEventListener('click',()=>{const db=gdb();const me=curUser();db.notifs.filter(n=>n.para===me).forEach(n=>n.leida=true);svdb(db);rNotifs()});
 
 // ═══ INIT ═══
