@@ -1736,29 +1736,8 @@ function rPanel(){
       </div>`).join('')}
     </div>`;
   } else pendEl.innerHTML='';
-  // OT SIN CERRAR
   const otEl=document.getElementById('p-ot-sin-cerrar');
-  if(otEl){
-    // Collect all acts with est='Pendiente Cerrar OT' visible to current user
-    const otPend=[];
-    Object.values(db.meses).forEach(md=>{
-      (md.acts||[]).forEach(a=>{
-        if(a.est==='Pendiente Cerrar OT'){
-          if(admin||a.tec===nom||(Array.isArray(a.tecs)&&a.tecs.includes(nom))) otPend.push(a);
-        }
-      });
-    });
-    if(otPend.length>0){
-      otEl.innerHTML=`<div class="card" style="border-color:var(--P)">
-        <div class="ct" style="color:var(--Ptxt)">🔧 OT's sin cerrar (${otPend.length})</div>
-        ${otPend.map(a=>`<div class="ot-card">
-          <div class="ot-desc">${a.desc||'Sin descripción'}</div>
-          <div class="ot-sub">${a.actId||'—'} · ${Array.isArray(a.tecs)?a.tecs.join(', '):(a.tec||'—')} · ${a.fecha||'Sin fecha'}</div>
-          <button class="btn btnP btnSm" style="margin-top:7px;width:100%" onclick="cerrarOT('${a.id}')">✓ Cerrar OT</button>
-        </div>`).join('')}
-      </div>`;
-    } else otEl.innerHTML='';
-  }
+  if(otEl)otEl.innerHTML='';
   // NOTIFS
   let ntf='';
   const iP=md.incs.filter(i=>i.est==='Pendiente').length;
@@ -1981,9 +1960,8 @@ function cambEst(id,src,val,sel){
   if(!found)return;
   if(found.locked&&!isAdm()){sel.value=found.est;alert('Solo el administrador puede reabrir actividades cerradas.');return}
   const prev=found.est;
-  if(val==='Completada'&&src==='act'){
-    found.est='Pendiente Cerrar OT';if(sel)sel.value='Pendiente Cerrar OT';
-  } else {found.est=val;}
+  found.est=val;
+  if(val==='Completada'&&src==='act')found.locked=true;
   if(val==='Realizada')found.locked=true;
   svdb(db);
   // Notify admin when tech changes status
@@ -2135,7 +2113,7 @@ function rProg(){
   Object.keys(db.meses).sort().forEach(k=>{
     const mActs=db.meses[k].acts||[];
     mActs.forEach(a=>{
-      if(a.est!=='Completada'&&a.est!=='Pendiente Cerrar OT'){
+      if(a.est!=='Completada'){
         allPending.push({...a,_fromKey:k});
       }
     });
@@ -2748,7 +2726,13 @@ function rTerminado(){
   Object.keys(db.meses).sort().reverse().forEach(k=>{
     const md=db.meses[k];
     const comp=(md.acts||[]).filter(a=>a.est==='Completada');
-    if(comp.length>0){byMonth[k]=comp;_termAllActs.push(...comp.map(a=>({...a,_mk:k})));}
+    comp.forEach(a=>{
+      const mk=a.fecha&&a.fecha.length>=7?a.fecha.slice(0,7):k;
+      if(!byMonth[mk])byMonth[mk]=[];
+      const ae={...a,_mk:k};
+      byMonth[mk].push(ae);
+      _termAllActs.push(ae);
+    });
   });
   const el=document.getElementById('terminado-list');
   if(!el)return;
@@ -2797,7 +2781,11 @@ function filterTerminado(q){
   Object.keys(db.meses).sort().reverse().forEach(k=>{
     const md=db.meses[k];
     const comp=(md.acts||[]).filter(a=>a.est==='Completada');
-    if(comp.length)byMonth[k]=comp;
+    comp.forEach(a=>{
+      const mk=a.fecha&&a.fecha.length>=7?a.fecha.slice(0,7):k;
+      if(!byMonth[mk])byMonth[mk]=[];
+      byMonth[mk].push({...a,_mk:k});
+    });
   });
   renderTerminado(byMonth,q);
 }
