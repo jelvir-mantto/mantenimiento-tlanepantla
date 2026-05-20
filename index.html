@@ -228,6 +228,15 @@ tr.selected td{background:#FEF2F2!important}
 .ot-card{border-left:3px solid var(--P);padding:10px 12px;margin-bottom:7px;border-radius:0 var(--r) var(--r) 0;background:var(--Pbg)}
 .ot-card .ot-desc{font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px}
 .ot-card .ot-sub{font-size:11px;color:var(--text2)}
+/* BUSCAR EQUIPO */
+.eq-result{padding:10px 12px;border-bottom:0.5px solid var(--brd);display:flex;align-items:flex-start;gap:10px}
+.eq-result:last-child{border-bottom:none}
+.eq-id{font-size:11px;font-weight:700;color:var(--Btxt);background:var(--Bbg);padding:2px 7px;border-radius:4px;white-space:nowrap;flex-shrink:0;font-family:monospace}
+.eq-name{font-size:13px;font-weight:600;color:var(--text)}
+/* CIERRE OT */
+.cot-card{border-left:3px solid var(--A);padding:11px 12px;margin-bottom:8px;border-radius:0 var(--r) var(--r) 0;background:var(--Abg)}
+.cot-card .cot-desc{font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px}
+.cot-card .cot-sub{font-size:11px;color:var(--text2);line-height:1.6}
 </style>
 </head>
 <body>
@@ -434,6 +443,32 @@ tr.selected td{background:#FEF2F2!important}
   </div>
 </div>
 
+<!-- BUSCAR EQUIPO -->
+<div class="pnl" id="pnl-buscar-equipo">
+  <div class="card">
+    <div class="ct">Buscar equipo por ID</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Ingresa un ID o parte del nombre del equipo para buscarlo en la base de datos TLANE EQ2.</p>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input type="search" id="eq-search-inp" placeholder="Ej: T_MA_4001 ó Molino ó 4050..." 
+        style="flex:1;padding:10px 12px;font-size:14px;border:1px solid var(--brd2);border-radius:var(--r);background:var(--bg2);color:var(--text)"
+        oninput="searchEquipo(this.value)" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+      <button class="btn btnP btnSm" onclick="searchEquipo(document.getElementById('eq-search-inp').value)">Buscar</button>
+    </div>
+    <div id="eq-results-count" style="font-size:12px;color:var(--text2);margin-bottom:8px"></div>
+    <div id="eq-results" style="border:0.5px solid var(--brd);border-radius:var(--r);overflow:hidden;background:var(--bg)"></div>
+  </div>
+</div>
+
+<!-- CIERRE DE OT -->
+<div class="pnl" id="pnl-cierreot">
+  <div class="card">
+    <div class="ct">Cierre de OT</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Actividades marcadas como <b>Completadas</b> que requieren tu cierre formal antes de pasar a <b>Terminado</b>. Revisa y da clic en <b>Cerrar OT</b> para finalizarlas.</p>
+    <div id="cierreot-list"></div>
+  </div>
+</div>
+
+<!-- PERSONAL (admin) -->
 <div class="pnl" id="pnl-personal">
   <div class="card">
     <div class="ct">Registrar técnico</div>
@@ -1683,21 +1718,24 @@ function buildNav(admin){
   // Notificaciones y Mensajes solo como íconos en header — no en tabs ni bnav
   const adminTabs=[
     {id:'panel',lbl:'Panel',ico:'⊞'},{id:'prog',lbl:'Prog.',ico:'📅'},
-    {id:'incidencias',lbl:'Pendientes',ico:'📋'},{id:'terminado',lbl:'Terminado',ico:'✅'},
+    {id:'incidencias',lbl:'Pendientes',ico:'📋'},{id:'cierreot',lbl:'Cierre OT',ico:'🔐'},
+    {id:'terminado',lbl:'Terminado',ico:'✅'},
     {id:'guardias',lbl:'Guardias',ico:'🔒'},
     {id:'visitas',lbl:'Visitas',ico:'🏭'},{id:'personal',lbl:'Personal',ico:'👥'},
     {id:'usuarios',lbl:'Usuarios',ico:'👤'},{id:'stats',lbl:'Stats',ico:'📊'},
+    {id:'buscar-equipo',lbl:'Buscar Eq.',ico:'🔍'},
   ];
   const tecTabs=[
     {id:'panel',lbl:'Panel',ico:'⊞'},{id:'prog',lbl:'Prog.',ico:'📅'},
     {id:'terminado',lbl:'Terminado',ico:'✅'},
     {id:'guardias',lbl:'Guardias',ico:'🔒'},
+    {id:'buscar-equipo',lbl:'Buscar Eq.',ico:'🔍'},
   ];
   const tabs=admin?adminTabs:tecTabs;
   document.getElementById('tabsBar').innerHTML=tabs.map(t=>`<button class="tab${t.id==='panel'?' on':''}" data-tab="${t.id}">${t.lbl}</button>`).join('');
   document.getElementById('bnavInner').innerHTML=tabs.slice(0,5).map(t=>`<button class="bi${t.id==='panel'?' on':''}" data-tab="${t.id}"><span class="bico">${t.ico}</span>${t.lbl}</button>`).join('');
   document.querySelectorAll('.tab,.bi').forEach(b=>b.addEventListener('click',()=>sw(b.dataset.tab)));
-  if(!admin)['pnl-personal','pnl-usuarios','pnl-stats','pnl-incidencias','pnl-visitas'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none'});
+  if(!admin)['pnl-personal','pnl-usuarios','pnl-stats','pnl-incidencias','pnl-visitas','pnl-cierreot'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none'});
 }
 
 function sw(t){
@@ -1705,7 +1743,7 @@ function sw(t){
   document.querySelectorAll('.tab,.bi').forEach(el=>el.classList.toggle('on',el.dataset.tab===t));
   document.querySelectorAll('.pnl').forEach(el=>el.classList.toggle('on',el.id==='pnl-'+t));
   window.scrollTo({top:0,behavior:'instant'});
-  ({panel:rPanel,prog:rProg,terminado:rTerminado,personal:rPersonal,incidencias:rInc,guardias:rGuard,visitas:rVisitas,usuarios:rUsuarios,stats:rStats,notificaciones:rNotifs,mensajes:rMsgs}[t]||function(){})();
+  ({panel:rPanel,prog:rProg,terminado:rTerminado,personal:rPersonal,incidencias:rInc,guardias:rGuard,visitas:rVisitas,usuarios:rUsuarios,stats:rStats,notificaciones:rNotifs,mensajes:rMsgs,cierreot:rCierreOT,'buscar-equipo':rBuscarEquipo}[t]||function(){})();
   syncTec();syncTecInc();
 }
 
@@ -1737,7 +1775,14 @@ function rPanel(){
     </div>`;
   } else pendEl.innerHTML='';
   const otEl=document.getElementById('p-ot-sin-cerrar');
-  if(otEl)otEl.innerHTML='';
+  if(otEl){
+    // Count all activities pending OT closure
+    let totPendCierre=0;
+    Object.values(db.meses).forEach(md2=>{totPendCierre+=(md2.acts||[]).filter(a=>a.est==='Pendiente Cerrar OT').length;});
+    if(admin&&totPendCierre>0){
+      otEl.innerHTML=`<div class="ntf ntfW" style="cursor:pointer" onclick="sw('cierreot')">🔐 ${totPendCierre} actividad(es) esperando <b>Cierre de OT</b>. Toca para revisar →</div>`;
+    } else otEl.innerHTML='';
+  }
   // NOTIFS
   let ntf='';
   const iP=md.incs.filter(i=>i.est==='Pendiente').length;
@@ -1822,7 +1867,7 @@ function openDayModal(ds){
       </div>
       ${canChg?`<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
         <select style="flex:1;font-size:12px;padding:4px 7px;min-width:100px;background:var(--bg2)" onchange="cambEst('${a.id}','${a._s}',this.value,this)">
-          ${(['Pendiente','En progreso','Completada',isInc?'Realizada':null]).filter(Boolean).map(s=>`<option${est===s?' selected':''}>${s}</option>`).join('')}
+          ${(isInc?['Pendiente','En progreso','Realizada']:['Pendiente','En progreso','Completada','Pendiente Cerrar OT']).map(s=>`<option${est===s?' selected':''}>${s}</option>`).join('')}
         </select>
         ${isAdm()?`<button class="btnXs" onclick="openEditModal('${a.id}','${a._s}')">Editar</button>`:''}
       </div>`:''}
@@ -1960,8 +2005,19 @@ function cambEst(id,src,val,sel){
   if(!found)return;
   if(found.locked&&!isAdm()){sel.value=found.est;alert('Solo el administrador puede reabrir actividades cerradas.');return}
   const prev=found.est;
+  // When marking an activity as Completada, redirect to Pendiente Cerrar OT first
+  if(val==='Completada'&&src==='act'){
+    found.est='Pendiente Cerrar OT';
+    found.locked=false;
+    svdb(db);
+    if(prev!=='Pendiente Cerrar OT'){
+      crearNotifAdmins(curNom(),`🔐 \"${found.desc?.slice(0,40)||'actividad'}\" completada por ${curNom()}. Pendiente de cierre de OT.`,id);
+    }
+    if(sel)sel.value='Pendiente Cerrar OT';
+    rPanel();if(TAB==='cierreot')rCierreOT();
+    return;
+  }
   found.est=val;
-  if(val==='Completada'&&src==='act')found.locked=true;
   if(val==='Realizada')found.locked=true;
   svdb(db);
   // Notify admin when tech changes status
@@ -2113,7 +2169,7 @@ function rProg(){
   Object.keys(db.meses).sort().forEach(k=>{
     const mActs=db.meses[k].acts||[];
     mActs.forEach(a=>{
-      if(a.est!=='Completada'){
+      if(a.est!=='Completada'&&a.est!=='Pendiente Cerrar OT'){
         allPending.push({...a,_fromKey:k});
       }
     });
@@ -2905,6 +2961,108 @@ function elimSeleccionadas(){
   svdb(db);clearSel();rProg();rPanel();
 }
 
+// ─── CIERRE DE OT ────────────────────────────────────────────────────────
+function rCierreOT(){
+  if(!isAdm())return;
+  const db=gdb();
+  const byMonth={};
+  let total=0;
+  Object.keys(db.meses).sort().reverse().forEach(k=>{
+    (db.meses[k].acts||[]).forEach(a=>{
+      if(a.est==='Pendiente Cerrar OT'){
+        const mk=a.fecha&&a.fecha.length>=7?a.fecha.slice(0,7):k;
+        if(!byMonth[mk])byMonth[mk]=[];
+        byMonth[mk].push({...a,_fromKey:k});
+        total++;
+      }
+    });
+  });
+  const el=document.getElementById('cierreot-list');if(!el)return;
+  if(total===0){el.innerHTML='<div class="empty">No hay actividades pendientes de cierre. ✅</div>';return;}
+  el.innerHTML=Object.keys(byMonth).sort().reverse().map(k=>{
+    const [y,m]=k.split('-');
+    const label=MESES[parseInt(m)-1]+' '+y;
+    const acts=byMonth[k];
+    const rows=acts.map(a=>{
+      const tecs=a.tecs&&a.tecs.length?a.tecs.join(', '):(a.tec||'—');
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--brd)">
+        <div style="flex:1;min-width:0;overflow:hidden">
+          <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.actId?`<span style="font-size:10px;color:var(--Atxt);font-weight:700;margin-right:4px">${a.actId}</span>`:''}${a.desc||'Sin descripción'}</div>
+          <div style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${tecs}${a.equipo?' · '+a.equipo:''}${a.fecha?' · '+a.fecha:''}</div>
+        </div>
+        <button class="btnXs" style="background:var(--Gbg);color:var(--Gtxt);border-color:var(--G);flex-shrink:0;white-space:nowrap" onclick="cerrarOTFinal('${a.id}','${a._fromKey}')">🔐 Cerrar</button>
+      </div>`;
+    }).join('');
+    return `<div class="mes-sep">📅 ${label} — ${acts.length} actividad(es)</div><div style="padding:0 2px">${rows}</div>`;
+  }).join('');
+}
+
+function cerrarOTFinal(id,fromKey){
+  if(!isAdm())return;
+  if(!confirm('¿Cerrar esta OT y moverla a Terminado?'))return;
+  const db=gdb();let found=null;
+  const searchKey=fromKey||null;
+  if(searchKey&&db.meses[searchKey]){
+    found=(db.meses[searchKey].acts||[]).find(x=>String(x.id)===String(id))||null;
+  }
+  if(!found){
+    for(const md of Object.values(db.meses)){
+      const a=(md.acts||[]).find(x=>String(x.id)===String(id));
+      if(a){found=a;break;}
+    }
+  }
+  if(!found)return;
+  found.est='Completada';
+  found.locked=true;
+  found.fechaCierre=hoyS();
+  svdb(db);
+  // Notify tech
+  const techUser=db.users.find(u=>u.nom===found.tec);
+  if(techUser)crearNotif(techUser.username,'Administrador',`✅ OT cerrada formalmente: "${found.desc?.slice(0,50)||'actividad'}"`,id);
+  rCierreOT();rPanel();if(TAB==='terminado')rTerminado();
+}
+
+// ─── BUSCAR EQUIPO ───────────────────────────────────────────────────────
+function rBuscarEquipo(){
+  // Just render the panel (no search yet — wait for user input)
+  const el=document.getElementById('eq-results');
+  if(el)el.innerHTML='<div class="empty" style="padding:16px">Escribe un ID o nombre para buscar.</div>';
+  const cnt=document.getElementById('eq-results-count');
+  if(cnt)cnt.textContent='Base de datos TLANE EQ2: '+Object.keys(EQ_DB).length+' equipos registrados.';
+}
+
+function searchEquipo(q){
+  const inp=(q||'').trim();
+  const cnt=document.getElementById('eq-results-count');
+  const el=document.getElementById('eq-results');
+  if(!el)return;
+  if(!inp||inp.length<2){
+    el.innerHTML='<div class="empty" style="padding:16px">Ingresa al menos 2 caracteres para buscar.</div>';
+    if(cnt)cnt.textContent='Base de datos TLANE EQ2: '+Object.keys(EQ_DB).length+' equipos registrados.';
+    return;
+  }
+  const ql=inp.toLowerCase();
+  const entries=Object.entries(EQ_DB);
+  const results=entries.filter(([k,v])=>
+    k.toLowerCase().includes(ql)||v.toLowerCase().includes(ql)
+  );
+  if(cnt)cnt.textContent=results.length===0?'Sin resultados.':results.length+' resultado(s) encontrado(s)';
+  if(results.length===0){
+    el.innerHTML=`<div class="empty" style="padding:16px">Sin coincidencias para "<b>${inp}</b>".<br><span style="font-size:11px">Prueba con parte del ID o del nombre.</span></div>`;
+    return;
+  }
+  // Highlight matches
+  function hl(txt){
+    if(!ql)return txt;
+    return txt.replace(new RegExp('('+ql.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),
+      '<mark style="background:var(--Abg);color:var(--Atxt);border-radius:2px;padding:0 1px">$1</mark>');
+  }
+  el.innerHTML=results.slice(0,80).map(([k,v])=>`<div class="eq-result">
+    <div class="eq-id">${hl(k)}</div>
+    <div class="eq-name">${hl(v)}</div>
+  </div>`).join('')+(results.length>80?`<div style="padding:9px 12px;font-size:11px;color:var(--text2)">… y ${results.length-80} resultado(s) más. Refina la búsqueda.</div>`:'');
+}
+
 // ─── FIREBASE INIT ────────────────────────────────────────────────────────
 const FB_CONFIG = {
   apiKey: "AIzaSyCWAEiZGeMus9wkFvAU_FolbLjJMOBvkwU",
@@ -2960,6 +3118,7 @@ function initFirebase(){
         _fbReady = true;
         hideFbLoading();
         backfillDescEquipo();
+        migrarCompletadasACierreOT();
         // If session exists and app not yet running, init it
         if(gS() && !document.getElementById('appScreen').style.display.includes('block')){
           try{ initApp(); }catch(e){}
@@ -2975,7 +3134,8 @@ function initFirebase(){
         if(gS()){
           updateBadges();
           const renders={panel:rPanel,prog:rProg,terminado:rTerminado,personal:rPersonal,incidencias:rInc,
-            guardias:rGuard,usuarios:rUsuarios,stats:rStats,notificaciones:rNotifs,mensajes:rMsgs};
+            guardias:rGuard,usuarios:rUsuarios,stats:rStats,notificaciones:rNotifs,mensajes:rMsgs,
+            cierreot:rCierreOT,'buscar-equipo':rBuscarEquipo};
           if(renders[TAB]) try{ renders[TAB](); }catch(e){}
         }
       }
@@ -3026,6 +3186,25 @@ function backfillDescEquipo(){
     });
   });
   if(changed)svdb(db);
+}
+
+// ─── ONE-TIME MIGRATION: move all Completada → Pendiente Cerrar OT ───────
+function migrarCompletadasACierreOT(){
+  const db=gdb();
+  if(db._migCierreOT)return; // already ran
+  let n=0;
+  Object.values(db.meses).forEach(md=>{
+    (md.acts||[]).forEach(a=>{
+      if(a.est==='Completada'){
+        a.est='Pendiente Cerrar OT';
+        a.locked=false;
+        n++;
+      }
+    });
+  });
+  db._migCierreOT=true;
+  svdb(db);
+  console.log('Migración Cierre OT: '+n+' actividad(es) movidas a Pendiente Cerrar OT.');
 }
 
 </script>
