@@ -298,6 +298,21 @@ tr.selected td{background:#FEF2F2!important}
     <div class="dz" id="dropzone">Toca aquí para cargar .xlsx<br><span style="font-size:11px;display:block;margin-top:3px">A=ID · B=Descripción · D=Equipo · AL=Edificio · AM=Nivel · AN=Área</span></div>
     <input type="file" id="fileIn" accept=".xlsx,.xls,.csv" style="display:none">
     <div id="impSt" style="margin-top:7px;font-size:12px;min-height:14px"></div>
+    <button class="btn btnD btnSm" style="margin-top:10px;font-size:12px" onclick="limpiarMes()">🗑 Limpiar todas las actividades de este mes</button>
+    <button class="btn btnSm" style="margin-top:6px;font-size:12px;background:var(--Bbg);color:var(--Btxt);border-color:var(--B)" onclick="transferirMesAnterior()">⟵ Traer actividades pendientes del mes anterior</button>
+  </div>
+
+  <!-- ── Modal confirmación importación ─────────────────────────────── -->
+  <div id="imp-modal-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;padding:16px">
+    <div style="background:var(--bg);border-radius:var(--rl);padding:22px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,0.3)">
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">Confirmar importación</div>
+      <div id="imp-modal-body" style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:16px"></div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btnD w100" id="imp-btn-repl">⟳ Reemplazar mes (borra las actuales y carga las nuevas)</button>
+        <button class="btn btnP w100" id="imp-btn-add">＋ Agregar al mes (conserva las actuales)</button>
+        <button class="btn w100" id="imp-btn-cancel">Cancelar</button>
+      </div>
+    </div>
   </div>
   <div class="card" style="padding:0;overflow:hidden">
     <div style="padding:11px 13px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;touch-action:manipulation" onclick="toggleAddActForm(this)">
@@ -2101,6 +2116,7 @@ function openEditModal(id,src){
       <option${a.est==='Pendiente'?' selected':''}>Pendiente</option>
       <option${a.est==='En progreso'?' selected':''}>En progreso</option>
       <option${a.est==='Completada'?' selected':''}>Completada</option>
+      <option${a.est==='Pendiente Cerrar OT'?' selected':''}>Pendiente Cerrar OT</option>
     </select></div>
     <div class="fg" style="margin-bottom:12px"><label>Comentario</label><textarea id="ea-cmt" placeholder="Agrega comentario opcional..." style="min-height:50px"></textarea></div>
     <div style="display:flex;gap:8px">
@@ -2163,17 +2179,8 @@ function rProg(){
     ch+=`<div class="cc" style="${isH?'border:1.5px solid var(--G)':''}" onclick="openDayModal('${ds}')"><div class="dn" style="${isH?'color:var(--G)':''}">${d}</div>${dots}</div>`;
   }
   document.getElementById('cal').innerHTML=ch;
-  // Collect all pending acts from ALL months (not just current)
-  const curKey=mak();
-  let allPending=[];
-  Object.keys(db.meses).sort().forEach(k=>{
-    const mActs=db.meses[k].acts||[];
-    mActs.forEach(a=>{
-      if(a.est!=='Completada'&&a.est!=='Pendiente Cerrar OT'){
-        allPending.push({...a,_fromKey:k});
-      }
-    });
-  });
+  // Only show acts from the current month that still need to be done
+  let allPending=(md.acts||[]).filter(a=>a.est!=='Completada'&&a.est!=='Pendiente Cerrar OT').map(a=>({...a,_fromKey:mak()}));
   const filtered=_paroFilt
     ? (_paroFilt==='__nec__'
         ? allPending.filter(a=>!a.paro||a.paro===''||a.paro==='No necesario')
@@ -2200,13 +2207,8 @@ function rProg(){
 function rInc(){
   syncTecInc();
   const db=gdb();const nom=isAdm()?null:curNom();
-  // Collect all non-completed incs from ALL months (carry-over pending)
-  let allIncs=[];
-  Object.keys(db.meses).sort().forEach(k=>{
-    (db.meses[k].incs||[]).forEach(i=>{
-      if(i.est!=='Realizada')allIncs.push(i);
-    });
-  });
+  // Only show incs from the current month
+  let allIncs=(gmd(db,mak()).incs||[]);
   const list=isAdm()?allIncs:allIncs.filter(i=>i.tecAsig===nom||i.tec===nom||!i.tecAsig);
   const el=document.getElementById('inc-list');
   if(list.length===0){el.innerHTML='<div class="empty">Sin pendientes.</div>';return}
@@ -2504,9 +2506,8 @@ function importFile(input){
     }
 
     const db=gdb();
-    const md=gmd(db,mak());
-    if(!md.nA)md.nA=1;
     const t0=db.tecs[0]?.nom||'';
+    const parsedActs=[];
     let n=0;
 
     dataRows.forEach(function(row){
@@ -2516,7 +2517,7 @@ function importFile(input){
 
       // Columns: A=0,B=1,C=2,D=3 ... AL=37,AM=38,AN=39
       const _eqNom=String(row[3]||'').trim();
-      const act={
+      parsedActs.push({
         id: Date.now()+'_'+n+'_'+Math.random().toString(36).slice(2,7),
         actId:   actId,
         desc:    desc||'Sin descripción',
@@ -2532,8 +2533,7 @@ function importFile(input){
         est:     'Pendiente',
         comments:[],
         locked:  false
-      };
-      md.acts.push(act);
+      });
       n++;
     });
 
@@ -2543,11 +2543,50 @@ function importFile(input){
       return;
     }
 
-    svdb(db);
-    st.style.color='var(--Gtxt)';
-    st.textContent='✓ '+n+' actividades importadas correctamente. Toca cada fila para asignar técnico y fecha.';
-    rProg();rPanel();
-    input.value='';
+    // ── Mostrar modal de confirmación ────────────────────────────────────
+    const existentes=(gmd(db,mak()).acts||[]).length;
+    const mesNom=document.getElementById('mesLbl').textContent||mak();
+    const body=document.getElementById('imp-modal-body');
+    body.innerHTML=
+      'Archivo: <b>'+file.name+'</b><br>'+
+      'Actividades encontradas: <b>'+n+'</b><br>'+
+      'Mes destino: <b>'+mesNom+'</b><br>'+
+      (existentes>0
+        ? '<span style="color:var(--Atxt)">⚠ Ya hay <b>'+existentes+'</b> actividad(es) en este mes.</span>'
+        : '<span style="color:var(--Gtxt)">✓ El mes está vacío.</span>');
+
+    const bg=document.getElementById('imp-modal-bg');
+    bg.style.display='flex';
+
+    function cerrarModal(){bg.style.display='none';}
+
+    document.getElementById('imp-btn-cancel').onclick=function(){
+      cerrarModal();
+      input.value='';
+      st.textContent='';
+    };
+
+    document.getElementById('imp-btn-repl').onclick=function(){
+      cerrarModal();
+      const db2=gdb();const md2=gmd(db2,mak());
+      if(!md2.nA)md2.nA=1;
+      md2.acts=parsedActs; // reemplaza
+      svdb(db2);
+      st.style.color='var(--Gtxt)';
+      st.textContent='✓ '+n+' actividades importadas (mes reemplazado). Toca cada fila para asignar técnico y fecha.';
+      rProg();rPanel();input.value='';
+    };
+
+    document.getElementById('imp-btn-add').onclick=function(){
+      cerrarModal();
+      const db2=gdb();const md2=gmd(db2,mak());
+      if(!md2.nA)md2.nA=1;
+      parsedActs.forEach(function(a){md2.acts.push(a);});
+      svdb(db2);
+      st.style.color='var(--Gtxt)';
+      st.textContent='✓ '+n+' actividades agregadas al mes. Toca cada fila para asignar técnico y fecha.';
+      rProg();rPanel();input.value='';
+    };
   }
 
   // ── CSV handler ─────────────────────────────────────────────────────────
@@ -3188,7 +3227,69 @@ function backfillDescEquipo(){
   if(changed)svdb(db);
 }
 
-// ─── ONE-TIME MIGRATION: move all Completada → Pendiente Cerrar OT ───────
+// ─── Transferir actividades pendientes del mes anterior al mes actual ────
+function transferirMesAnterior(){
+  if(!isAdm())return;
+  const db=gdb();
+  // Calcular clave del mes anterior
+  let py=MES.y, pm=MES.m-1;
+  if(pm<0){pm=11;py--;}
+  const prevKey=mk(py,pm);
+  const curKey=mak();
+  const mesActualNom=document.getElementById('mesLbl').textContent||curKey;
+  const MESES_NOM=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const mesAnteriorNom=MESES_NOM[pm]+' '+py;
+
+  if(!db.meses[prevKey]||(db.meses[prevKey].acts||[]).length===0){
+    alert('No hay actividades en '+mesAnteriorNom+'.');return;
+  }
+  const pendientes=(db.meses[prevKey].acts||[]).filter(
+    a=>a.est!=='Completada'&&a.est!=='Pendiente Cerrar OT'
+  );
+  if(pendientes.length===0){
+    alert('No hay actividades pendientes en '+mesAnteriorNom+' para transferir.\nTodas están completadas o en Cierre OT.');return;
+  }
+  if(!confirm('¿Mover '+pendientes.length+' actividad(es) pendientes de '+mesAnteriorNom+' a '+mesActualNom+'?\n\nSe borrarán de '+mesAnteriorNom+'.'))return;
+
+  const mdCur=gmd(db,curKey);
+  const mdPrev=db.meses[prevKey];
+
+  // Reasignar con nuevos IDs para evitar colisiones
+  pendientes.forEach(function(a,i){
+    mdCur.acts.push(Object.assign({},a,{
+      id: Date.now()+'_t'+i+'_'+Math.random().toString(36).slice(2,5),
+      fecha:'',  // limpiar fecha anterior para que el admin la programe de nuevo
+    }));
+  });
+
+  // Quitar del mes anterior
+  mdPrev.acts=(mdPrev.acts||[]).filter(
+    a=>a.est==='Completada'||a.est==='Pendiente Cerrar OT'
+  );
+
+  svdb(db);
+  document.getElementById('impSt').style.color='var(--Gtxt)';
+  document.getElementById('impSt').textContent='✓ '+pendientes.length+' actividades transferidas de '+mesAnteriorNom+' a '+mesActualNom+'. Las fechas fueron limpiadas para reprogramación.';
+  rProg();rPanel();
+}
+
+// ─── Limpiar todas las actividades del mes actual ───────────────────────
+function limpiarMes(){
+  if(!isAdm())return;
+  const mesNom=document.getElementById('mesLbl').textContent||mak();
+  const db=gdb();
+  const md=gmd(db,mak());
+  const n=(md.acts||[]).length;
+  if(n===0){alert('El mes de '+mesNom+' ya está vacío.');return;}
+  if(!confirm('¿Borrar las '+n+' actividades de '+mesNom+'?\n\nEsta acción no se puede deshacer.'))return;
+  md.acts=[];
+  svdb(db);
+  document.getElementById('impSt').style.color='var(--Gtxt)';
+  document.getElementById('impSt').textContent='✓ Mes limpiado. Ahora puedes importar el archivo correcto.';
+  rProg();rPanel();
+}
+
+
 function migrarCompletadasACierreOT(){
   const db=gdb();
   if(db._migCierreOT)return; // already ran
