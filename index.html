@@ -239,10 +239,6 @@ tr.selected td{background:#FEF2F2!important}
 .cot-card .cot-sub{font-size:11px;color:var(--text2);line-height:1.6}
 </style>
 </head>
-<!-- Librerías para Inspección Molino -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 <body>
 
 
@@ -3759,6 +3755,21 @@ function resetInsp(){
   const st=document.getElementById('insp-status');if(st)st.textContent='';
 }
 
+// ── Lazy-load inspection libs (only when needed) ──────────────────
+function cargarLibInsp(src){
+  return new Promise((res,rej)=>{
+    if(document.querySelector(`script[src="${src}"]`)){res();return;}
+    const s=document.createElement('script');
+    s.src=src;s.onload=res;s.onerror=()=>rej(new Error('No se pudo cargar: '+src));
+    document.head.appendChild(s);
+  });
+}
+async function cargarLibsInsp(){
+  await cargarLibInsp('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  await cargarLibInsp('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js');
+  await cargarLibInsp('https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js');
+}
+
 // ── Main button handler ───────────────────────────────────────────
 async function finalizarInspeccion(){
   const d=getInspData();
@@ -3767,6 +3778,10 @@ async function finalizarInspeccion(){
   const st=document.getElementById('insp-status');
   btn.disabled=true;
   try{
+    // 0. Load libs on demand
+    btn.textContent='⏳ Cargando librerías...';
+    await cargarLibsInsp();
+
     // 1. JPEG
     btn.textContent='⏳ Generando imagen...';
     const jpegUrl=generarJPEG(d);
@@ -3803,3 +3818,7 @@ async function finalizarInspeccion(){
   }
 }
 
+
+</script>
+</body>
+</html>
