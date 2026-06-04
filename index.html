@@ -239,6 +239,10 @@ tr.selected td{background:#FEF2F2!important}
 .cot-card .cot-sub{font-size:11px;color:var(--text2);line-height:1.6}
 </style>
 </head>
+<!-- Librerías para Inspección Molino -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 <body>
 
 
@@ -480,6 +484,43 @@ tr.selected td{background:#FEF2F2!important}
     <div class="ct">Cierre de OT</div>
     <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Actividades marcadas como <b>Completadas</b> que requieren tu cierre formal antes de pasar a <b>Terminado</b>. Revisa y da clic en <b>Cerrar OT</b> para finalizarlas.</p>
     <div id="cierreot-list"></div>
+  </div>
+</div>
+
+<!-- INSPECCIÓN MOLINO (técnico + admin) -->
+<div class="pnl" id="pnl-inspeccion">
+  <div class="card" style="background:var(--Bbg);border-color:var(--B)">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="font-size:22px">🔬</span>
+      <div class="ct" style="margin-bottom:0;color:var(--Btxt)">Inspección Semanal de Molino</div>
+    </div>
+    <div style="font-size:12px;color:var(--text2)">Fecha: <span id="insp-fecha" style="font-weight:700;color:var(--text)"></span> &nbsp;|&nbsp; Técnico: <span id="insp-tec" style="font-weight:700;color:var(--text)"></span></div>
+    <div style="font-size:11px;color:var(--text2);margin-top:4px">Los datos <b>no</b> se guardan en la app. Al finalizar se genera JPEG + PDF y se envían por correo automáticamente.</div>
+  </div>
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="ct" style="margin-bottom:0">🔧 Compresores — Cuarto de Máquinas</div>
+      <span id="comp-badge" style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--Abg);color:var(--Atxt);font-weight:700;flex-shrink:0">0/4</span>
+    </div>
+    <div id="insp-comp-list"></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="ct" style="margin-bottom:0">💨 Soplantes — Cuarto de Máquinas</div>
+      <span id="scto-badge" style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--Abg);color:var(--Atxt);font-weight:700;flex-shrink:0">0/7</span>
+    </div>
+    <div id="insp-scto-list"></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="ct" style="margin-bottom:0">💨 Soplantes — Molino</div>
+      <span id="smol-badge" style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--Abg);color:var(--Atxt);font-weight:700;flex-shrink:0">0/6</span>
+    </div>
+    <div id="insp-smol-list"></div>
+  </div>
+  <div class="card" style="border-color:var(--G)">
+    <div id="insp-status" style="font-size:12px;min-height:16px;margin-bottom:10px;color:var(--text2)"></div>
+    <button id="btn-insp-final" class="btn btnP w100" style="font-size:15px;padding:14px;font-weight:700" onclick="finalizarInspeccion()">✅ Finalizar Rutina y Enviar Reporte</button>
   </div>
 </div>
 
@@ -1739,12 +1780,14 @@ function buildNav(admin){
     {id:'visitas',lbl:'Visitas',ico:'🏭'},{id:'personal',lbl:'Personal',ico:'👥'},
     {id:'usuarios',lbl:'Usuarios',ico:'👤'},{id:'stats',lbl:'Stats',ico:'📊'},
     {id:'buscar-equipo',lbl:'Buscar Eq.',ico:'🔍'},
+    {id:'inspeccion',lbl:'Insp. Molino',ico:'🔬'},
   ];
   const tecTabs=[
     {id:'panel',lbl:'Panel',ico:'⊞'},{id:'prog',lbl:'Prog.',ico:'📅'},
     {id:'terminado',lbl:'Terminado',ico:'✅'},
     {id:'guardias',lbl:'Guardias',ico:'🔒'},
     {id:'buscar-equipo',lbl:'Buscar Eq.',ico:'🔍'},
+    {id:'inspeccion',lbl:'Insp. Molino',ico:'🔬'},
   ];
   const tabs=admin?adminTabs:tecTabs;
   document.getElementById('tabsBar').innerHTML=tabs.map(t=>`<button class="tab${t.id==='panel'?' on':''}" data-tab="${t.id}">${t.lbl}</button>`).join('');
@@ -1758,7 +1801,7 @@ function sw(t){
   document.querySelectorAll('.tab,.bi').forEach(el=>el.classList.toggle('on',el.dataset.tab===t));
   document.querySelectorAll('.pnl').forEach(el=>el.classList.toggle('on',el.id==='pnl-'+t));
   window.scrollTo({top:0,behavior:'instant'});
-  ({panel:rPanel,prog:rProg,terminado:rTerminado,personal:rPersonal,incidencias:rInc,guardias:rGuard,visitas:rVisitas,usuarios:rUsuarios,stats:rStats,notificaciones:rNotifs,mensajes:rMsgs,cierreot:rCierreOT,'buscar-equipo':rBuscarEquipo}[t]||function(){})();
+  ({panel:rPanel,prog:rProg,terminado:rTerminado,personal:rPersonal,incidencias:rInc,guardias:rGuard,visitas:rVisitas,usuarios:rUsuarios,stats:rStats,notificaciones:rNotifs,mensajes:rMsgs,cierreot:rCierreOT,'buscar-equipo':rBuscarEquipo,inspeccion:rInspeccion}[t]||function(){})();
   syncTec();syncTecInc();
 }
 
@@ -3174,7 +3217,7 @@ function initFirebase(){
           updateBadges();
           const renders={panel:rPanel,prog:rProg,terminado:rTerminado,personal:rPersonal,incidencias:rInc,
             guardias:rGuard,usuarios:rUsuarios,stats:rStats,notificaciones:rNotifs,mensajes:rMsgs,
-            cierreot:rCierreOT,'buscar-equipo':rBuscarEquipo};
+            cierreot:rCierreOT,'buscar-equipo':rBuscarEquipo,inspeccion:rInspeccion};
           if(renders[TAB]) try{ renders[TAB](); }catch(e){}
         }
       }
@@ -3308,6 +3351,455 @@ function migrarCompletadasACierreOT(){
   console.log('Migración Cierre OT: '+n+' actividad(es) movidas a Pendiente Cerrar OT.');
 }
 
-</script>
-</body>
-</html>
+// ═══════════════════════════════════════════════════════════════════
+// ═══ INSPECCIÓN SEMANAL DE MOLINO ══════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+
+// ── Configuración EmailJS ─────────────────────────────────────────
+// 1. Crea cuenta en https://www.emailjs.com
+// 2. Crea un Email Service (Gmail o SMTP) → copia el Service ID
+// 3. Crea un Email Template con variables: {{subject}}, {{message_html}}, {{to_email}}
+//    En el campo "To email" escribe: {{to_email}}
+// 4. Copia tu Public Key desde Account > API Keys
+const EMAILJS_CONF = {
+  publicKey:  'YOUR_EMAILJS_PUBLIC_KEY',   // ← Cambia esto
+  serviceId:  'YOUR_EMAILJS_SERVICE_ID',   // ← Cambia esto
+  templateId: 'YOUR_EMAILJS_TEMPLATE_ID',  // ← Cambia esto
+};
+const INSP_DEST = 'jelvir@harinaselizondo.com';
+
+// ── Definición de equipos ─────────────────────────────────────────
+const COMP_DEF = [
+  {label:'Compresor 1', tag:'T_0031'},
+  {label:'Compresor 2', tag:'T_0030'},
+  {label:'Compresor 3', tag:'T_0029A'},
+  {label:'Compresor 4', tag:'T_0058'},
+];
+const SCTO_DEF = ['T_C4501','T_A4451','T_A6001','T_A4068','T_B4068','T_A6020','T_A4461'];
+const SMOL_DEF = ['T_C4580','T_A6232','T_A6010','T_C4512','T_A2040','T_C4059'];
+
+// ── Render form ───────────────────────────────────────────────────
+function rInspeccion(){
+  const hoy=new Date();
+  const fs=`${String(hoy.getDate()).padStart(2,'0')}/${String(hoy.getMonth()+1).padStart(2,'0')}/${hoy.getFullYear()}`;
+  const ef=document.getElementById('insp-fecha'); if(ef)ef.textContent=fs;
+  const et=document.getElementById('insp-tec');   if(et)et.textContent=curNom();
+
+  function buildField(id,label,type,req,opts){
+    if(type==='select'){
+      return `<div class="fg"><label>${label}${req?'<span style="color:var(--R)"> *</span>':''}</label>
+        <select id="${id}"${req?` class="insp-req" onchange="inspChk()"`:''}>${(opts||[]).map(o=>`<option value="${o.v||o}">${o.l||o}</option>`).join('')}</select></div>`;
+    }
+    return `<div class="fg"><label>${label}${req?'<span style="color:var(--R)"> *</span>':''}</label>
+      <input type="${type||'text'}" id="${id}" placeholder="${opts||''}"${req?` class="insp-req" oninput="inspChk()"`:''}></div>`;
+  }
+
+  const compEl=document.getElementById('insp-comp-list');
+  if(compEl&&!compEl.dataset.built){
+    compEl.dataset.built='1';
+    compEl.innerHTML=COMP_DEF.map((c,i)=>`
+      <details style="margin-bottom:10px;border:1.5px solid var(--brd);border-radius:var(--r);overflow:hidden" open="${i===0?'true':''}">
+        <summary style="padding:10px 12px;cursor:pointer;background:var(--bg2);list-style:none;display:flex;align-items:center;justify-content:space-between;touch-action:manipulation">
+          <span style="font-size:13px;font-weight:700">🔧 ${c.label} <span style="font-weight:400;color:var(--text2);font-size:12px">${c.tag}</span></span>
+          <span id="cbdg${i}" style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--Rbg);color:var(--Rtxt);font-weight:700;flex-shrink:0">Incompleto</span>
+        </summary>
+        <div style="padding:10px 12px">
+          <div class="g3" style="margin-bottom:8px">
+            ${buildField(`c${i}-hm`,'H. Marcha (hr)','number',true,'0.0')}
+            ${buildField(`c${i}-hc`,'H. Carga (hr)','number',true,'0.0')}
+            ${buildField(`c${i}-hd`,'H. Disponible (hr)','number',true,'0.0')}
+          </div>
+          <div class="g3" style="margin-bottom:8px">
+            ${buildField(`c${i}-te`,'T° Elemento (°C)','number',true,'0')}
+            ${buildField(`c${i}-ts`,'T° Secador (°C)','number',true,'0')}
+            ${buildField(`c${i}-ta`,'T° Ambiente (°C)','number',true,'0')}
+          </div>
+          <div class="g2" style="margin-bottom:8px">
+            ${buildField(`c${i}-am`,'Arr. Motor (veces)','number',false,'—')}
+            ${buildField(`c${i}-as`,'Arr. Secador (veces)','number',false,'—')}
+          </div>
+          <div class="g2" style="margin-bottom:8px">
+            ${buildField(`c${i}-ac`,'Nivel de Aceite','select',true,[{v:'',l:'— Seleccionar —'},'Bajo','Óptimo','Alto'])}
+          </div>
+          ${buildField(`c${i}-cm`,'Comentarios','text',false,'Observaciones opcionales...')}
+        </div>
+      </details>`).join('');
+  }
+
+  function buildSoplante(pfx, tag, i, isMolino){
+    const pdLabel = isMolino ? 'Pres. Diferencial (mbar-)' : 'Pres. Diferencial';
+    const ptLabel = isMolino ? 'Pres. de Trabajo (bar+)' : 'Pres. de Trabajo';
+    return `
+      <details style="margin-bottom:10px;border:1.5px solid var(--brd);border-radius:var(--r);overflow:hidden">
+        <summary style="padding:10px 12px;cursor:pointer;background:var(--bg2);list-style:none;display:flex;align-items:center;justify-content:space-between;touch-action:manipulation">
+          <span style="font-size:13px;font-weight:700">💨 ${tag}</span>
+          <span id="${pfx}bdg${i}" style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--Rbg);color:var(--Rtxt);font-weight:700;flex-shrink:0">Incompleto</span>
+        </summary>
+        <div style="padding:10px 12px">
+          <div class="g2" style="margin-bottom:8px">
+            ${buildField(`${pfx}${i}-est`,'Estado','select',true,[{v:'',l:'— Seleccionar —'},'TRABAJANDO','APAGADO'])}
+            ${buildField(`${pfx}${i}-pd`,pdLabel,'number',true,'0.00')}
+          </div>
+          <div class="g2" style="margin-bottom:8px">
+            ${buildField(`${pfx}${i}-pt`,ptLabel,'number',true,'0.00')}
+            ${buildField(`${pfx}${i}-cm`,'Comentarios','text',false,'Opcional...')}
+          </div>
+        </div>
+      </details>`;
+  }
+
+  const sctEl=document.getElementById('insp-scto-list');
+  if(sctEl&&!sctEl.dataset.built){sctEl.dataset.built='1';sctEl.innerHTML=SCTO_DEF.map((s,i)=>buildSoplante('sc',s,i,false)).join('');}
+  const smEl=document.getElementById('insp-smol-list');
+  if(smEl&&!smEl.dataset.built){smEl.dataset.built='1';smEl.innerHTML=SMOL_DEF.map((s,i)=>buildSoplante('sm',s,i,true)).join('');}
+
+  inspChk();
+}
+
+// ── Check completion progress ─────────────────────────────────────
+function inspChk(){
+  function isOk(id){const e=document.getElementById(id);return e&&e.value!==''&&e.value!==null;}
+  let co=0,so=0,mo=0;
+
+  COMP_DEF.forEach((_,i)=>{
+    const ok=[`c${i}-hm`,`c${i}-hc`,`c${i}-hd`,`c${i}-te`,`c${i}-ts`,`c${i}-ta`,`c${i}-ac`].every(isOk);
+    const b=document.getElementById(`cbdg${i}`);
+    if(b){b.textContent=ok?'✓ Completo':'Incompleto';b.style.background=ok?'var(--Gbg)':'var(--Rbg)';b.style.color=ok?'var(--Gtxt)':'var(--Rtxt)';}
+    if(ok)co++;
+  });
+  SCTO_DEF.forEach((_,i)=>{
+    const ok=[`sc${i}-est`,`sc${i}-pd`,`sc${i}-pt`].every(isOk);
+    const b=document.getElementById(`scbdg${i}`);
+    if(b){b.textContent=ok?'✓ Completo':'Incompleto';b.style.background=ok?'var(--Gbg)':'var(--Rbg)';b.style.color=ok?'var(--Gtxt)':'var(--Rtxt)';}
+    if(ok)so++;
+  });
+  SMOL_DEF.forEach((_,i)=>{
+    const ok=[`sm${i}-est`,`sm${i}-pd`,`sm${i}-pt`].every(isOk);
+    const b=document.getElementById(`smbdg${i}`);
+    if(b){b.textContent=ok?'✓ Completo':'Incompleto';b.style.background=ok?'var(--Gbg)':'var(--Rbg)';b.style.color=ok?'var(--Gtxt)':'var(--Rtxt)';}
+    if(ok)mo++;
+  });
+
+  function upd(id,v,t){const e=document.getElementById(id);if(!e)return;e.textContent=`${v}/${t}`;const ok=v===t;e.style.background=ok?'var(--Gbg)':'var(--Abg)';e.style.color=ok?'var(--Gtxt)':'var(--Atxt)';}
+  upd('comp-badge',co,COMP_DEF.length);upd('scto-badge',so,SCTO_DEF.length);upd('smol-badge',mo,SMOL_DEF.length);
+
+  const total=co+so+mo, req=COMP_DEF.length+SCTO_DEF.length+SMOL_DEF.length;
+  const st=document.getElementById('insp-status');
+  if(st){
+    if(total===req){st.style.color='var(--Gtxt)';st.textContent='✓ Todos los campos obligatorios completados. Listo para enviar.';}
+    else{st.style.color='var(--Atxt)';st.textContent=`${total}/${req} equipos completados. Completa los campos marcados con *.`;}
+  }
+}
+
+// ── Collect form data ─────────────────────────────────────────────
+function getInspData(){
+  const hoy=new Date();
+  const fs=`${String(hoy.getDate()).padStart(2,'0')}/${String(hoy.getMonth()+1).padStart(2,'0')}/${hoy.getFullYear()}`;
+  const v=id=>{const e=document.getElementById(id);return e?e.value:'';};
+  return{
+    fecha:fs, tec:curNom(),
+    compresores:COMP_DEF.map((c,i)=>({label:c.label,tag:c.tag,hm:v(`c${i}-hm`),hc:v(`c${i}-hc`),hd:v(`c${i}-hd`),te:v(`c${i}-te`),ts:v(`c${i}-ts`),ta:v(`c${i}-ta`),am:v(`c${i}-am`),as_:v(`c${i}-as`),ac:v(`c${i}-ac`),cm:v(`c${i}-cm`)})),
+    soplantes_cto:SCTO_DEF.map((s,i)=>({tag:s,est:v(`sc${i}-est`),pd:v(`sc${i}-pd`),pt:v(`sc${i}-pt`),cm:v(`sc${i}-cm`)})),
+    soplantes_mol:SMOL_DEF.map((s,i)=>({tag:s,est:v(`sm${i}-est`),pd:v(`sm${i}-pd`),pt:v(`sm${i}-pt`),cm:v(`sm${i}-cm`)})),
+  };
+}
+
+// ── Validate required fields ──────────────────────────────────────
+function validarInsp(d){
+  for(let i=0;i<d.compresores.length;i++){
+    const c=d.compresores[i],m=[];
+    if(!c.hm)m.push('H. Marcha');if(!c.hc)m.push('H. Carga');if(!c.hd)m.push('H. Disponible');
+    if(!c.te)m.push('T° Elemento');if(!c.ts)m.push('T° Secador');if(!c.ta)m.push('T° Ambiente');
+    if(!c.ac)m.push('Nivel Aceite');
+    if(m.length){alert(`${c.label} (${c.tag}): faltan campos:\n• ${m.join('\n• ')}`);return false;}
+  }
+  for(let i=0;i<d.soplantes_cto.length;i++){
+    const s=d.soplantes_cto[i],m=[];
+    if(!s.est)m.push('Estado');if(s.pd==='')m.push('Pres. Diferencial');if(s.pt==='')m.push('Pres. de Trabajo');
+    if(m.length){alert(`Soplante CTO ${s.tag}: faltan:\n• ${m.join('\n• ')}`);return false;}
+  }
+  for(let i=0;i<d.soplantes_mol.length;i++){
+    const s=d.soplantes_mol[i],m=[];
+    if(!s.est)m.push('Estado');if(s.pd==='')m.push('Pres. Diferencial');if(s.pt==='')m.push('Pres. de Trabajo');
+    if(m.length){alert(`Soplante Molino ${s.tag}: faltan:\n• ${m.join('\n• ')}`);return false;}
+  }
+  return true;
+}
+
+// ── Generate professional JPEG using Canvas API ───────────────────
+function generarJPEG(d){
+  const W=1400,PAD=40,RH=30,TH=34;
+  const NAVY='#1B3A6B',NAVY2='#4A86C8',WHITE='#FFFFFF',GRAY1='#F8FAFB',BRDCLR='#CBD5E1';
+
+  // Pre-calculate height
+  const sectionH=(n,h)=>30+TH+n*RH;
+  const H=130+sectionH(d.compresores.length)+20+sectionH(d.soplantes_cto.length)+14+sectionH(d.soplantes_mol.length)+50;
+
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;
+  const ctx=cv.getContext('2d');
+  ctx.fillStyle=WHITE;ctx.fillRect(0,0,W,H);
+
+  // Header
+  ctx.fillStyle=NAVY;ctx.fillRect(0,0,W,100);
+  ctx.fillStyle=NAVY2;ctx.fillRect(0,100,W,20);
+  ctx.fillStyle=WHITE;ctx.textBaseline='top';
+  ctx.font='bold 26px Arial';ctx.fillText('FÁBRICA DE HARINAS ELIZONDO',PAD,18);
+  ctx.font='15px Arial';ctx.fillStyle='#A8C5E8';
+  ctx.fillText('Mantenimiento Tlanepantla  —  Inspección Semanal de Molino',PAD,56);
+  ctx.fillStyle=WHITE;ctx.font='bold 13px Arial';ctx.textAlign='right';
+  ctx.fillText('Fecha: '+d.fecha,W-PAD,18);
+  ctx.font='13px Arial';ctx.fillStyle='#A8C5E8';
+  ctx.fillText('Técnico: '+d.tec,W-PAD,42);
+  ctx.textAlign='left';
+
+  // Draw table helper
+  function drawSection(title,cols,rows,y0){
+    const CW=W-PAD*2;
+    // resolve flexible column width
+    const fixed=cols.reduce((s,c)=>s+(c.w||0),0);
+    const fill=CW-fixed;
+    const rCols=cols.map(c=>({...c,rw:c.w||(fill>0?fill:80)}));
+
+    // Section title bar
+    ctx.fillStyle='#EFF4FB';ctx.fillRect(PAD,y0,CW,28);
+    ctx.fillStyle=NAVY;ctx.font='bold 12px Arial';ctx.textBaseline='middle';
+    ctx.fillText(title,PAD+10,y0+14);
+    let y=y0+28;
+
+    // Header row
+    ctx.fillStyle=NAVY;ctx.fillRect(PAD,y,CW,TH);
+    ctx.fillStyle=WHITE;ctx.font='bold 10px Arial';ctx.textBaseline='middle';
+    let cx=PAD;
+    rCols.forEach(c=>{ctx.fillText(c.label,cx+6,y+TH/2);cx+=c.rw;});
+    y+=TH;
+
+    // Data rows
+    rows.forEach((row,ri)=>{
+      ctx.fillStyle=ri%2===0?WHITE:GRAY1;ctx.fillRect(PAD,y,CW,RH);
+      ctx.textBaseline='middle';
+      let cx=PAD;
+      rCols.forEach((col,ci)=>{
+        const val=String(row[ci]||'—');
+        // Color coding for Estado
+        if(col.label==='Estado'){
+          ctx.fillStyle=val==='TRABAJANDO'?'#085041':'#791F1F';
+          ctx.font='bold 10px Arial';
+        } else {
+          ctx.fillStyle='#1A1A1A';ctx.font='10px Arial';
+        }
+        // Truncate to fit
+        let txt=val,mx=col.rw-14;
+        while(ctx.measureText(txt).width>mx&&txt.length>1)txt=txt.slice(0,-1);
+        if(txt!==val&&txt.length>0)txt=txt.slice(0,-1)+'…';
+        ctx.fillText(txt,cx+7,y+RH/2);
+        cx+=col.rw;
+      });
+      y+=RH;
+    });
+
+    // Borders
+    ctx.strokeStyle=BRDCLR;ctx.lineWidth=1;
+    ctx.strokeRect(PAD,y0+28,CW,TH+rows.length*RH);
+    // Horizontal lines
+    ctx.lineWidth=0.5;ctx.strokeStyle='#E2E8F0';
+    for(let ri=0;ri<rows.length;ri++){
+      const ry=y0+28+TH+ri*RH;
+      ctx.beginPath();ctx.moveTo(PAD,ry);ctx.lineTo(W-PAD,ry);ctx.stroke();
+    }
+    // Vertical lines
+    cx=PAD;
+    rCols.forEach((col,ci)=>{
+      if(ci>0){ctx.beginPath();ctx.moveTo(cx,y0+28);ctx.lineTo(cx,y0+28+TH+rows.length*RH);ctx.strokeStyle=BRDCLR;ctx.lineWidth=0.5;ctx.stroke();}
+      cx+=col.rw;
+    });
+
+    return y0+28+TH+rows.length*RH;
+  }
+
+  // Compressor columns (JPEG format per spec)
+  const CCOLS=[{label:'ID / Compresor',w:200},{label:'T° Elemento',w:120},{label:'T° Secador',w:120},{label:'H. Marcha',w:110},{label:'H. Carga',w:110},{label:'Nivel Aceite',w:115},{label:'Comentarios',w:0}];
+  const SCOLS=[{label:'ID / Soplante',w:180},{label:'Estado',w:130},{label:'Pres. Diferencial',w:170},{label:'Pres. de Trabajo',w:170},{label:'Comentarios',w:0}];
+
+  const cRows=d.compresores.map(c=>[`${c.label} (${c.tag})`,c.te?c.te+'°C':'—',c.ts?c.ts+'°C':'—',c.hm?c.hm+' hr':'—',c.hc?c.hc+' hr':'—',c.ac||'—',c.cm||'']);
+  const sctRows=d.soplantes_cto.map(s=>[s.tag,s.est||'—',s.pd!==''?s.pd+' mbar':'—',s.pt!==''?s.pt+' bar':'—',s.cm||'']);
+  const smRows=d.soplantes_mol.map(s=>[s.tag,s.est||'—',s.pd!==''?s.pd+' mbar':'—',s.pt!==''?s.pt+' bar':'—',s.cm||'']);
+
+  let y=130;
+  y=drawSection('🔧  COMPRESORES — CUARTO DE MÁQUINAS',CCOLS,cRows,y);y+=20;
+  y=drawSection('💨  SOPLANTES — CUARTO DE MÁQUINAS',SCOLS,sctRows,y);y+=14;
+  y=drawSection('💨  SOPLANTES — MOLINO',SCOLS,smRows,y);
+
+  // Footer
+  ctx.fillStyle='#6B7280';ctx.font='10px Arial';ctx.textBaseline='top';
+  ctx.fillText('Generado por Sistema de Mantenimiento Tlanepantla  •  '+new Date().toLocaleString('es-MX'),PAD,y+16);
+
+  return cv.toDataURL('image/jpeg',0.95);
+}
+
+// ── Generate PDF using jsPDF ──────────────────────────────────────
+function generarPDF(d){
+  if(!window.jspdf)return null;
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight();
+
+  // Header
+  doc.setFillColor(27,58,107);doc.rect(0,0,W,22,'F');
+  doc.setFillColor(74,134,200);doc.rect(0,22,W,4,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(15);doc.setFont('helvetica','bold');
+  doc.text('FÁBRICA DE HARINAS ELIZONDO',10,10);
+  doc.setFontSize(8);doc.setFont('helvetica','normal');
+  doc.text('Mantenimiento Tlanepantla  —  Inspección Semanal de Molino',10,17);
+  doc.setTextColor(168,197,232);doc.setFontSize(8);
+  doc.text('Fecha: '+d.fecha,W-10,10,{align:'right'});
+  doc.text('Técnico: '+d.tec,W-10,17,{align:'right'});
+
+  const HS={fillColor:[27,58,107],textColor:[255,255,255],fontSize:7,fontStyle:'bold'};
+  const BS={fontSize:7,textColor:[30,30,30]};
+  const ARS={fillColor:[248,250,251]};
+
+  let y=30;
+  // Compresores
+  doc.setTextColor(27,58,107);doc.setFontSize(9);doc.setFont('helvetica','bold');
+  doc.text('COMPRESORES — CUARTO DE MÁQUINAS',10,y);y+=4;
+  doc.autoTable({
+    head:[['ID / TAG','T°Elem.','T°Sec.','T°Amb.','H.Marcha','H.Carga','H.Disp.','Aceite','Arr.Motor','Arr.Sec.','Comentarios']],
+    body:d.compresores.map(c=>[`${c.label}\n${c.tag}`,c.te?c.te+'°C':'—',c.ts?c.ts+'°C':'—',c.ta?c.ta+'°C':'—',c.hm?c.hm+' hr':'—',c.hc?c.hc+' hr':'—',c.hd?c.hd+' hr':'—',c.ac||'—',c.am||'—',c.as_||'—',c.cm||'']),
+    startY:y,theme:'grid',headStyles:HS,bodyStyles:BS,alternateRowStyles:ARS,margin:{left:10,right:10},
+  });
+  y=doc.lastAutoTable.finalY+6;
+
+  // Soplantes CTO
+  doc.setTextColor(27,58,107);doc.setFontSize(9);doc.setFont('helvetica','bold');
+  doc.text('SOPLANTES — CUARTO DE MÁQUINAS',10,y);y+=4;
+  doc.autoTable({
+    head:[['ID / TAG','Estado','Pres. Diferencial','Pres. de Trabajo','Comentarios']],
+    body:d.soplantes_cto.map(s=>[s.tag,s.est||'—',s.pd!==''?s.pd+' mbar':'—',s.pt!==''?s.pt+' bar':'—',s.cm||'']),
+    startY:y,theme:'grid',headStyles:HS,bodyStyles:BS,alternateRowStyles:ARS,margin:{left:10,right:10},
+    columnStyles:{1:{cellWidth:28}},
+  });
+  y=doc.lastAutoTable.finalY+6;
+
+  // Soplantes Molino
+  doc.setTextColor(27,58,107);doc.setFontSize(9);doc.setFont('helvetica','bold');
+  doc.text('SOPLANTES — MOLINO',10,y);y+=4;
+  doc.autoTable({
+    head:[['ID / TAG','Estado','Pres. Diferencial (mbar-)','Pres. de Trabajo (bar+)','Comentarios']],
+    body:d.soplantes_mol.map(s=>[s.tag,s.est||'—',s.pd!==''?s.pd+' mbar':'—',s.pt!==''?s.pt+' bar':'—',s.cm||'']),
+    startY:y,theme:'grid',headStyles:HS,bodyStyles:BS,alternateRowStyles:ARS,margin:{left:10,right:10},
+    columnStyles:{1:{cellWidth:28}},
+  });
+
+  // Footer
+  doc.setFontSize(7);doc.setTextColor(150);
+  doc.text('Sistema de Mantenimiento Tlanepantla  •  '+new Date().toLocaleString('es-MX'),W/2,H-4,{align:'center'});
+
+  return doc.output('datauristring');
+}
+
+// ── Build HTML email body ─────────────────────────────────────────
+function buildInspEmail(d){
+  const th='padding:7px 9px;font-size:11px;background:#1B3A6B;color:#fff;border:1px solid #1B3A6B';
+  const td='padding:6px 9px;font-size:11px;border:1px solid #DEE2E6';
+  const tbl='width:100%;border-collapse:collapse;margin-bottom:14px';
+  const cRows=d.compresores.map((c,i)=>`<tr style="background:${i%2?'#F8FAFB':'#FFF'}">
+    <td style="${td}"><b>${c.label}</b><br><small style="color:#666">${c.tag}</small></td>
+    <td style="${td}">${c.te?c.te+'°C':'—'}</td><td style="${td}">${c.ts?c.ts+'°C':'—'}</td>
+    <td style="${td}">${c.hm?c.hm+' hr':'—'}</td><td style="${td}">${c.hc?c.hc+' hr':'—'}</td>
+    <td style="${td};color:${c.ac==='Bajo'?'#791F1F':c.ac==='Alto'?'#633806':'#085041'};font-weight:600">${c.ac||'—'}</td>
+    <td style="${td}">${c.cm||''}</td></tr>`).join('');
+  const sopRows=(arr)=>arr.map((s,i)=>`<tr style="background:${i%2?'#F8FAFB':'#FFF'}">
+    <td style="${td};font-weight:700">${s.tag}</td>
+    <td style="${td};color:${s.est==='TRABAJANDO'?'#085041':'#791F1F'};font-weight:700">${s.est||'—'}</td>
+    <td style="${td}">${s.pd!==''?s.pd+' mbar':'—'}</td>
+    <td style="${td}">${s.pt!==''?s.pt+' bar':'—'}</td>
+    <td style="${td}">${s.cm||''}</td></tr>`).join('');
+
+  return `<html><body style="font-family:Arial,sans-serif;margin:0;padding:16px;color:#1A1A1A">
+  <div style="background:#1B3A6B;padding:16px 20px;border-radius:6px;margin-bottom:18px">
+    <h2 style="color:#fff;margin:0;font-size:17px">FÁBRICA DE HARINAS ELIZONDO</h2>
+    <p style="color:#A8C5E8;margin:4px 0 0;font-size:12px">Mantenimiento Tlanepantla — Inspección Semanal de Molino</p>
+  </div>
+  <p style="font-size:12px;color:#555;margin-bottom:16px"><b>Fecha:</b> ${d.fecha} &nbsp;|&nbsp; <b>Técnico:</b> ${d.tec}</p>
+  <h3 style="color:#1B3A6B;font-size:13px;margin-bottom:6px">🔧 Compresores — Cuarto de Máquinas</h3>
+  <table style="${tbl}"><thead><tr><th style="${th}">ID/TAG</th><th style="${th}">T°Elem.</th><th style="${th}">T°Sec.</th><th style="${th}">H.Marcha</th><th style="${th}">H.Carga</th><th style="${th}">Aceite</th><th style="${th}">Comentarios</th></tr></thead><tbody>${cRows}</tbody></table>
+  <h3 style="color:#1B3A6B;font-size:13px;margin-bottom:6px">💨 Soplantes — Cuarto de Máquinas</h3>
+  <table style="${tbl}"><thead><tr><th style="${th}">ID/TAG</th><th style="${th}">Estado</th><th style="${th}">Pres.Dif.</th><th style="${th}">Pres.Trab.</th><th style="${th}">Comentarios</th></tr></thead><tbody>${sopRows(d.soplantes_cto)}</tbody></table>
+  <h3 style="color:#1B3A6B;font-size:13px;margin-bottom:6px">💨 Soplantes — Molino</h3>
+  <table style="${tbl}"><thead><tr><th style="${th}">ID/TAG</th><th style="${th}">Estado</th><th style="${th}">Pres.Dif.(mbar)</th><th style="${th}">Pres.Trab.(bar)</th><th style="${th}">Comentarios</th></tr></thead><tbody>${sopRows(d.soplantes_mol)}</tbody></table>
+  <p style="font-size:10px;color:#999;margin-top:16px;border-top:1px solid #eee;padding-top:10px">Generado automáticamente • ${new Date().toLocaleString('es-MX')}</p>
+</body></html>`;
+}
+
+// ── Send email via EmailJS ────────────────────────────────────────
+async function enviarInspEmail(d){
+  if(!window.emailjs){return{ok:false,err:'EmailJS no cargado'};}
+  if(EMAILJS_CONF.publicKey==='YOUR_EMAILJS_PUBLIC_KEY'){return{ok:false,err:'sin_config'};}
+  try{
+    emailjs.init(EMAILJS_CONF.publicKey);
+    await emailjs.send(EMAILJS_CONF.serviceId,EMAILJS_CONF.templateId,{
+      to_email:INSP_DEST,
+      from_name:'Mant. Tlanepantla',
+      subject:`Inspección Semanal Molino — ${d.fecha} — ${d.tec}`,
+      fecha:d.fecha, tecnico:d.tec,
+      message_html:buildInspEmail(d),
+    });
+    return{ok:true};
+  }catch(e){return{ok:false,err:String(e.text||e.message||e)};}
+}
+
+// ── Download helper ───────────────────────────────────────────────
+function inspDL(url,name){const a=document.createElement('a');a.href=url;a.download=name;a.click();}
+
+// ── Reset form ────────────────────────────────────────────────────
+function resetInsp(){
+  ['insp-comp-list','insp-scto-list','insp-smol-list'].forEach(id=>{
+    const e=document.getElementById(id);if(e){e.dataset.built='';e.innerHTML='';}
+  });
+  const st=document.getElementById('insp-status');if(st)st.textContent='';
+}
+
+// ── Main button handler ───────────────────────────────────────────
+async function finalizarInspeccion(){
+  const d=getInspData();
+  if(!validarInsp(d))return;
+  const btn=document.getElementById('btn-insp-final');
+  const st=document.getElementById('insp-status');
+  btn.disabled=true;
+  try{
+    // 1. JPEG
+    btn.textContent='⏳ Generando imagen...';
+    const jpegUrl=generarJPEG(d);
+
+    // 2. PDF
+    btn.textContent='⏳ Generando PDF...';
+    const pdfUrl=generarPDF(d);
+
+    // 3. Downloads
+    const slug=d.fecha.replace(/\//g,'-');
+    inspDL(jpegUrl,`inspeccion_molino_${slug}.jpg`);
+    if(pdfUrl)setTimeout(()=>inspDL(pdfUrl,`inspeccion_molino_${slug}.pdf`),800);
+
+    // 4. Email
+    btn.textContent='⏳ Enviando correo...';
+    const res=await enviarInspEmail(d);
+
+    if(res.ok){
+      if(st){st.style.color='var(--Gtxt)';st.textContent='✅ Reporte enviado a '+INSP_DEST+'.';}
+      alert(`✅ Rutina finalizada correctamente.\n\nSe envió el reporte a:\n${INSP_DEST}\n\nArchivos descargados:\n• inspeccion_molino_${slug}.jpg\n• inspeccion_molino_${slug}.pdf`);
+    } else if(res.err==='sin_config'){
+      if(st){st.style.color='var(--Atxt)';st.textContent='⚠ EmailJS no configurado. Archivos descargados localmente.';}
+      alert(`⚠ EmailJS aún no configurado.\n\nLos archivos se descargaron en tu dispositivo:\n• inspeccion_molino_${slug}.jpg\n• inspeccion_molino_${slug}.pdf\n\nPara activar el envío automático, edita el código y rellena las 3 variables EMAILJS_CONF al inicio de la sección de Inspección Molino.`);
+    } else {
+      if(st){st.style.color='var(--Rtxt)';st.textContent='⚠ Error al enviar email. Archivos descargados localmente.';}
+      alert(`⚠ No se pudo enviar el correo:\n${res.err}\n\nLos archivos sí se descargaron en tu dispositivo.`);
+    }
+    resetInsp();
+  }catch(err){
+    if(st){st.style.color='var(--Rtxt)';st.textContent='Error: '+err.message;}
+    alert('Error generando el reporte: '+err.message);console.error(err);
+  }finally{
+    btn.disabled=false;btn.textContent='✅ Finalizar Rutina y Enviar Reporte';
+  }
+}
+
