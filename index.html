@@ -1778,6 +1778,12 @@ function buildNav(admin){
     {id:'buscar-equipo',lbl:'Buscar Eq.',ico:'🔍'},
     {id:'inspeccion',lbl:'Insp. Molino',ico:'🔬'},
   ];
+  const adminTabsMobile=[
+    {id:'panel',lbl:'Panel',ico:'⊞'},{id:'prog',lbl:'Prog.',ico:'📅'},
+    {id:'terminado',lbl:'Terminado',ico:'✅'},
+    {id:'buscar-equipo',lbl:'Buscar Eq.',ico:'🔍'},
+    {id:'inspeccion',lbl:'Insp. Molino',ico:'🔬'},
+  ];
   const tecTabs=[
     {id:'panel',lbl:'Panel',ico:'⊞'},{id:'prog',lbl:'Prog.',ico:'📅'},
     {id:'terminado',lbl:'Terminado',ico:'✅'},
@@ -1786,8 +1792,9 @@ function buildNav(admin){
     {id:'inspeccion',lbl:'Insp. Molino',ico:'🔬'},
   ];
   const tabs=admin?adminTabs:tecTabs;
+  const tabsMobile=admin?adminTabsMobile:tecTabs;
   document.getElementById('tabsBar').innerHTML=tabs.map(t=>`<button class="tab${t.id==='panel'?' on':''}" data-tab="${t.id}">${t.lbl}</button>`).join('');
-  document.getElementById('bnavInner').innerHTML=tabs.slice(0,5).map(t=>`<button class="bi${t.id==='panel'?' on':''}" data-tab="${t.id}"><span class="bico">${t.ico}</span>${t.lbl}</button>`).join('');
+  document.getElementById('bnavInner').innerHTML=tabsMobile.map(t=>`<button class="bi${t.id==='panel'?' on':''}" data-tab="${t.id}"><span class="bico">${t.ico}</span>${t.lbl}</button>`).join('');
   document.querySelectorAll('.tab,.bi').forEach(b=>b.addEventListener('click',()=>sw(b.dataset.tab)));
   if(!admin)['pnl-personal','pnl-usuarios','pnl-stats','pnl-incidencias','pnl-visitas','pnl-cierreot'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none'});
 }
