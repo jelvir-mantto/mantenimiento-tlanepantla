@@ -233,6 +233,14 @@ tr.selected td{background:#FEF2F2!important}
 .eq-result:last-child{border-bottom:none}
 .eq-id{font-size:11px;font-weight:700;color:var(--Btxt);background:var(--Bbg);padding:2px 7px;border-radius:4px;white-space:nowrap;flex-shrink:0;font-family:monospace}
 .eq-name{font-size:13px;font-weight:600;color:var(--text)}
+.eq-tag{font-size:9px;font-weight:700;color:var(--Ptxt);background:var(--Pbg);padding:1px 5px;border-radius:3px;margin-left:6px;vertical-align:middle}
+.eqf-inp{width:100%;padding:10px 12px;font-size:14px;border:1px solid var(--brd2);border-radius:var(--r);background:var(--bg2);color:var(--text);font-family:inherit}
+.eqf-inp:focus{outline:none;border-color:var(--G)}
+.eq-cust-row{padding:9px 12px;border-bottom:0.5px solid var(--brd);display:flex;align-items:center;gap:10px}
+.eq-cust-row:last-child{border-bottom:none}
+.eq-cust-main{flex:1;min-width:0}
+.eq-cust-del{flex-shrink:0;padding:4px 9px;font-size:11px;font-weight:600;border:1px solid var(--R);border-radius:var(--r);background:var(--Rbg);color:var(--Rtxt);cursor:pointer;font-family:inherit;touch-action:manipulation}
+.eq-cust-del:active{opacity:.7}
 /* CIERRE OT */
 .cot-card{border-left:3px solid var(--A);padding:11px 12px;margin-bottom:8px;border-radius:0 var(--r) var(--r) 0;background:var(--Abg)}
 .cot-card .cot-desc{font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px}
@@ -471,6 +479,34 @@ tr.selected td{background:#FEF2F2!important}
     </div>
     <div id="eq-results-count" style="font-size:12px;color:var(--text2);margin-bottom:8px"></div>
     <div id="eq-results" style="border:0.5px solid var(--brd);border-radius:var(--r);overflow:hidden;background:var(--bg)"></div>
+  </div>
+
+  <!-- REGISTRAR NUEVO EQUIPO (solo admin) -->
+  <div class="card" id="eq-reg-card" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer" onclick="toggleEqForm()">
+      <div class="ct" style="margin-bottom:0">➕ Registrar nuevo equipo</div>
+      <span id="eqf-caret" style="font-size:13px;color:var(--text2)">▼</span>
+    </div>
+    <div id="eqf-body" style="display:none;margin-top:12px">
+      <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Agrega un equipo que no está en la base TLANE EQ2. Se guardará en el servidor y se sincronizará en todos los dispositivos.</p>
+      <div class="fg" style="margin-bottom:10px">
+        <label style="font-size:12px;font-weight:600;color:var(--text2)">ID del equipo *</label>
+        <input id="eqf-id" class="eqf-inp" type="text" placeholder="Ej: T_MA_4001" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <div class="fg" style="margin-bottom:12px">
+        <label style="font-size:12px;font-weight:600;color:var(--text2)">Nombre / descripción *</label>
+        <input id="eqf-name" class="eqf-inp" type="text" placeholder="Ej: Molino de Martillos 4001" autocomplete="off" spellcheck="false">
+      </div>
+      <button class="btn btnP w100" onclick="registrarEquipo()">Guardar equipo</button>
+      <div id="eqf-msg" style="font-size:12px;margin-top:9px;min-height:16px"></div>
+    </div>
+  </div>
+
+  <!-- EQUIPOS AGREGADOS -->
+  <div class="card" id="eq-cust-card" style="display:none">
+    <div class="ct">Equipos agregados manualmente</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Estos equipos los registraste tú (no forman parte de la base original). Puedes eliminarlos.</p>
+    <div id="eq-cust-list" style="border:0.5px solid var(--brd);border-radius:var(--r);overflow:hidden;background:var(--bg)"></div>
   </div>
 </div>
 
@@ -1534,10 +1570,22 @@ const EQ_DB = {
   "T_ALMACEN_RP": "Almacen De Residuos Peligrosos"
 };
 
+// ─── EQUIPOS PERSONALIZADOS (sincronizados vía Firebase) ──────────────────
+// Devuelve el objeto {ID:nombre} de equipos agregados manualmente.
+function getEquiposCustom(){
+  try{ const db=ldb(); return (db && db.equiposCustom) ? db.equiposCustom : {}; }
+  catch(e){ return {}; }
+}
+// Combina la base fija EQ_DB con los equipos personalizados.
+function getEquiposAll(){
+  return Object.assign({}, EQ_DB, getEquiposCustom());
+}
+
 function lookupEquipo(equipo){
   if(!equipo) return '';
   const k=equipo.trim();
-  return EQ_DB[k]||EQ_DB[k.toUpperCase()]||'';
+  const cust=getEquiposCustom();
+  return EQ_DB[k]||EQ_DB[k.toUpperCase()]||cust[k]||cust[k.toUpperCase()]||'';
 }
 
 const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -3113,7 +3161,18 @@ function rBuscarEquipo(){
   const el=document.getElementById('eq-results');
   if(el)el.innerHTML='<div class="empty" style="padding:16px">Escribe un ID o nombre para buscar.</div>';
   const cnt=document.getElementById('eq-results-count');
-  if(cnt)cnt.textContent='Base de datos TLANE EQ2: '+Object.keys(EQ_DB).length+' equipos registrados.';
+  if(cnt)cnt.textContent='Base de datos TLANE EQ2: '+Object.keys(getEquiposAll()).length+' equipos registrados.';
+  // Registro de equipos: SOLO administradores
+  const admin=isAdm();
+  const regCard=document.getElementById('eq-reg-card');
+  if(regCard)regCard.style.display=admin?'block':'none';
+  // Reset formulario y refrescar lista de equipos agregados
+  const msg=document.getElementById('eqf-msg'); if(msg)msg.textContent='';
+  rEquiposCustomList();
+}
+
+function escEq(s){
+  return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 function searchEquipo(q){
@@ -3121,31 +3180,121 @@ function searchEquipo(q){
   const cnt=document.getElementById('eq-results-count');
   const el=document.getElementById('eq-results');
   if(!el)return;
+  const ALL=getEquiposAll();
+  const cust=getEquiposCustom();
   if(!inp||inp.length<2){
     el.innerHTML='<div class="empty" style="padding:16px">Ingresa al menos 2 caracteres para buscar.</div>';
-    if(cnt)cnt.textContent='Base de datos TLANE EQ2: '+Object.keys(EQ_DB).length+' equipos registrados.';
+    if(cnt)cnt.textContent='Base de datos TLANE EQ2: '+Object.keys(ALL).length+' equipos registrados.';
     return;
   }
   const ql=inp.toLowerCase();
-  const entries=Object.entries(EQ_DB);
+  const entries=Object.entries(ALL);
   const results=entries.filter(([k,v])=>
-    k.toLowerCase().includes(ql)||v.toLowerCase().includes(ql)
+    k.toLowerCase().includes(ql)||String(v).toLowerCase().includes(ql)
   );
   if(cnt)cnt.textContent=results.length===0?'Sin resultados.':results.length+' resultado(s) encontrado(s)';
   if(results.length===0){
-    el.innerHTML=`<div class="empty" style="padding:16px">Sin coincidencias para "<b>${inp}</b>".<br><span style="font-size:11px">Prueba con parte del ID o del nombre.</span></div>`;
+    el.innerHTML=`<div class="empty" style="padding:16px">Sin coincidencias para "<b>${escEq(inp)}</b>".<br><span style="font-size:11px">Prueba con parte del ID o del nombre.</span></div>`;
     return;
   }
   // Highlight matches
   function hl(txt){
+    txt=escEq(txt);
     if(!ql)return txt;
     return txt.replace(new RegExp('('+ql.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),
       '<mark style="background:var(--Abg);color:var(--Atxt);border-radius:2px;padding:0 1px">$1</mark>');
   }
   el.innerHTML=results.slice(0,80).map(([k,v])=>`<div class="eq-result">
     <div class="eq-id">${hl(k)}</div>
-    <div class="eq-name">${hl(v)}</div>
+    <div class="eq-name">${hl(v)}${cust[k]?'<span class="eq-tag">AGREGADO</span>':''}</div>
   </div>`).join('')+(results.length>80?`<div style="padding:9px 12px;font-size:11px;color:var(--text2)">… y ${results.length-80} resultado(s) más. Refina la búsqueda.</div>`:'');
+}
+
+// ─── REGISTRAR / ELIMINAR EQUIPOS PERSONALIZADOS ─────────────────────────
+function toggleEqForm(){
+  const body=document.getElementById('eqf-body');
+  const caret=document.getElementById('eqf-caret');
+  if(!body)return;
+  const open=body.style.display!=='none';
+  body.style.display=open?'none':'block';
+  if(caret)caret.textContent=open?'▼':'▲';
+}
+
+function registrarEquipo(){
+  if(!isAdm()){ alert('Solo el administrador puede registrar equipos.'); return; }
+  const idEl=document.getElementById('eqf-id');
+  const nmEl=document.getElementById('eqf-name');
+  const msg=document.getElementById('eqf-msg');
+  const setMsg=(t,col)=>{ if(msg){msg.style.color=col;msg.textContent=t;} };
+  if(!idEl||!nmEl)return;
+  const id=(idEl.value||'').trim().toUpperCase();
+  const nombre=(nmEl.value||'').trim();
+  if(!id){ setMsg('⚠ Ingresa el ID del equipo.','var(--Rtxt)'); idEl.focus(); return; }
+  if(!nombre){ setMsg('⚠ Ingresa el nombre o descripción del equipo.','var(--Rtxt)'); nmEl.focus(); return; }
+  if(id.length<2){ setMsg('⚠ El ID es demasiado corto.','var(--Rtxt)'); idEl.focus(); return; }
+  // ¿Ya existe?
+  if(EQ_DB[id]){
+    setMsg('⚠ Ese ID ya existe en la base TLANE EQ2: "'+EQ_DB[id]+'".','var(--Rtxt)');
+    return;
+  }
+  const cust=getEquiposCustom();
+  if(cust[id]){
+    if(!confirm('El equipo "'+id+'" ya fue agregado como "'+cust[id]+'".\n\n¿Reemplazar su nombre por "'+nombre+'"?')) return;
+  }
+  // Guardar en la base sincronizada
+  const db=ldb();
+  if(!db.equiposCustom) db.equiposCustom={};
+  db.equiposCustom[id]=nombre;
+  svdb(db);
+  // Limpiar y refrescar
+  idEl.value=''; nmEl.value='';
+  setMsg('✅ Equipo "'+id+'" guardado correctamente.','var(--Gtxt)');
+  rEquiposCustomList();
+  const cnt=document.getElementById('eq-results-count');
+  if(cnt)cnt.textContent='Base de datos TLANE EQ2: '+Object.keys(getEquiposAll()).length+' equipos registrados.';
+  idEl.focus();
+}
+
+function eliminarEquipoCustom(id){
+  if(!isAdm()){ alert('Solo el administrador puede eliminar equipos.'); return; }
+  const cust=getEquiposCustom();
+  if(!cust[id])return;
+  if(!confirm('¿Eliminar el equipo "'+id+'" ('+cust[id]+')?\n\nEsta acción se sincroniza en todos los dispositivos.')) return;
+  const db=ldb();
+  if(db.equiposCustom){ delete db.equiposCustom[id]; svdb(db); }
+  rEquiposCustomList();
+  const cnt=document.getElementById('eq-results-count');
+  if(cnt)cnt.textContent='Base de datos TLANE EQ2: '+Object.keys(getEquiposAll()).length+' equipos registrados.';
+  // Si hay una búsqueda activa, refrescarla
+  const si=document.getElementById('eq-search-inp');
+  if(si && si.value.trim().length>=2) searchEquipo(si.value);
+}
+
+// Claves del render actual (para borrar por índice de forma segura)
+let _eqCustKeys=[];
+function eliminarEquipoCustomIdx(i){
+  const id=_eqCustKeys[i];
+  if(id!=null) eliminarEquipoCustom(id);
+}
+
+function rEquiposCustomList(){
+  const card=document.getElementById('eq-cust-card');
+  const list=document.getElementById('eq-cust-list');
+  if(!list||!card)return;
+  // La gestión (con botón Eliminar) es SOLO para administradores
+  if(!isAdm()){ card.style.display='none'; list.innerHTML=''; _eqCustKeys=[]; return; }
+  const cust=getEquiposCustom();
+  const keys=Object.keys(cust).sort();
+  _eqCustKeys=keys;
+  if(keys.length===0){ card.style.display='none'; list.innerHTML=''; return; }
+  card.style.display='block';
+  list.innerHTML=keys.map((k,i)=>`<div class="eq-cust-row">
+    <div class="eq-cust-main">
+      <div class="eq-id" style="display:inline-block;margin-bottom:3px">${escEq(k)}</div>
+      <div class="eq-name">${escEq(cust[k])}</div>
+    </div>
+    <button class="eq-cust-del" onclick="eliminarEquipoCustomIdx(${i})">Eliminar</button>
+  </div>`).join('');
 }
 
 // ─── FIREBASE INIT ────────────────────────────────────────────────────────
