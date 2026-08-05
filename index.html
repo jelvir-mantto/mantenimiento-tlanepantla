@@ -684,8 +684,8 @@ tr.selected td{background:#FEF2F2!important}
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script>
 // ─── EQUIPMENT DATABASE (957 entries) ───────────────────
 const EQ_DB = {
@@ -3786,7 +3786,7 @@ function initFirebase(){
         _fbReady = true;
         hideFbLoading();
       }
-    }, 7000);
+    }, 3000);
 
   }catch(e){
     console.error('Firebase init failed:', e);
