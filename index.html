@@ -682,8 +682,8 @@ tr.selected td{background:#FEF2F2!important}
   </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script>
@@ -2970,6 +2970,14 @@ document.getElementById('btnMarkAllRead').addEventListener('click',()=>{const db
 // ═══ INIT ═══
 cargarEjemplo();
 if(gS())initApp();
+// Red de seguridad: si Firebase no respondió en 3s (p.ej. datos móviles lentos/bloqueados),
+// quita la pantalla "Conectando..." y deja usar la app con los datos guardados en el teléfono.
+setTimeout(function(){
+  if(typeof _fbReady!=='undefined' && !_fbReady){
+    var el=document.getElementById('fbLoading'); if(el) el.style.display='none';
+    if(gS()){ try{ initApp(); }catch(e){} }
+  }
+}, 3000);
 
 // ─── PARO INLINE ──────────────────────────────────────────────────────────
 function setParo(id,val){
@@ -3797,8 +3805,22 @@ function initFirebase(){
   }
 }
 
-// Start Firebase
-initFirebase();
+// Start Firebase — de forma diferida y a prueba de fallos.
+// Si el SDK de Firebase no cargó (p.ej. bloqueado por la red de datos),
+// la app igual funciona con los datos guardados localmente.
+function _bootFirebase(){
+  if(typeof firebase==='undefined'){
+    if(typeof _fbReady!=='undefined' && !_fbReady){
+      try{ var local=localStorage.getItem('mant_v8'); _fbCache= local? JSON.parse(local):{}; }catch(e){ _fbCache={}; }
+      _fbReady=true; hideFbLoading();
+      if(gS()){ try{ initApp(); }catch(e){} }
+    }
+    return;
+  }
+  initFirebase();
+}
+if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', _bootFirebase); }
+else { _bootFirebase(); }
 
 function backfillDescEquipo(){
   const db=gdb();let changed=false;
