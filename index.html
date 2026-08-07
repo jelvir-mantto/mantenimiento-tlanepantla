@@ -184,6 +184,8 @@ tr:last-child td{border-bottom:none}
 .pl-box .pl-lbl{position:absolute;top:-20px;left:-2px;background:#ff2d2d;color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;white-space:nowrap;font-family:ui-monospace,monospace}
 .pl-box.user .pl-lbl{background:#12b886}
 .pl-box .pl-del{position:absolute;top:-9px;right:-9px;width:20px;height:20px;line-height:18px;text-align:center;background:#fff;color:#c0392b;border-radius:50%;font-size:14px;font-weight:800;pointer-events:auto;cursor:pointer;border:1px solid #ccc}
+.pl-boxes.pl-editing .pl-box,#pl-boxes.pl-editing .pl-box{pointer-events:auto;cursor:pointer}
+#pl-boxes.pl-editing .pl-box:active{box-shadow:0 0 0 3px #fff,0 0 14px rgba(0,0,0,.6)}
 @keyframes plPulse{0%,100%{opacity:1}50%{opacity:.45}}
 .pl-vbar{display:flex;align-items:center;gap:8px;padding:9px 12px;background:#161616;color:#fff;flex-shrink:0;font-size:12px}
 .pl-vbar .pl-z{display:flex;gap:6px;margin-left:auto}
@@ -294,6 +296,7 @@ tr.selected td{background:#FEF2F2!important}
       <h1>Mantenimiento</h1>
       <p>Planta Tlanepantla · FHESA</p>
       <div class="byl">by Joao Elvir</div>
+      <div class="byl" style="margin-top:2px;opacity:.6;font-size:10px">v2.2 · editar recuadros</div>
     </div>
     <div class="lerr" id="loginErr"></div>
     <div class="fg" style="margin-bottom:9px"><label class="llbl">Usuario</label><input id="l-user" class="linput" type="text" placeholder="Ingresa tu usuario" autocapitalize="none"></div>
@@ -3276,12 +3279,29 @@ function plCanon(s){
 function plUserBoxes(){ try{var db=ldb();return (db&&db.planoBoxes)?db.planoBoxes:{};}catch(e){return {};} }
 function plSaveBox(tag,box){ var db=ldb(); db.planoBoxes=db.planoBoxes||{}; db.planoBoxes[tag]=box; svdb(db); }
 function plDelBox(tag){ var db=ldb(); if(db.planoBoxes&&db.planoBoxes[tag]){delete db.planoBoxes[tag]; svdb(db);} }
+// Recuadros OCR (rojos) ocultados por el usuario porque estaban mal
+function plHidden(){ try{var db=ldb();return (db&&db.planoHidden)?db.planoHidden:{};}catch(e){return {};} }
+function plOcrKey(t,b){ return t+'@'+b.s+':'+Math.round(b.x*1000)+','+Math.round(b.y*1000); }
+function plHideOCR(t,b){ var db=ldb(); db.planoHidden=db.planoHidden||{}; db.planoHidden[plOcrKey(t,b)]=1; svdb(db); }
+// Todas las cajas OCR (no ocultas) de una pantalla — para poder verlas y corregirlas en modo edición
+function plOcrBoxesForScreen(s){
+  var out=[], hidden=plHidden();
+  Object.keys(SCADA_TAGS).forEach(function(t){
+    (SCADA_TAGS[t]||[]).forEach(function(a){
+      if(a[0]!==s) return;
+      var b={s:a[0],x:a[1],y:a[2],w:a[3],h:a[4],user:false};
+      if(hidden[plOcrKey(t,b)]) return;
+      out.push({t:t,b:b});
+    });
+  });
+  return out;
+}
 
 // Todas las cajas para un tag: OCR (rojas) + usuario (verde), sobre TODAS las pantallas
 function plBoxesForTag(tag){
-  var out=[];
+  var out=[], hidden=plHidden();
   var ocr=SCADA_TAGS[tag];
-  if(ocr) ocr.forEach(function(b){ out.push({s:b[0],x:b[1],y:b[2],w:b[3],h:b[4],user:false}); });
+  if(ocr) ocr.forEach(function(b){ var box={s:b[0],x:b[1],y:b[2],w:b[3],h:b[4],user:false}; if(!hidden[plOcrKey(tag,box)]) out.push(box); });
   var ub=plUserBoxes();
   if(ub[tag]){ var u=ub[tag]; out.push({s:u.s,x:u.x,y:u.y,w:u.w,h:u.h,user:true}); }
   return out;
@@ -3438,33 +3458,53 @@ function plCloseViewer(){
 }
 function plRenderBoxes(tag){
   var wrap=document.getElementById('pl-boxes'); if(!wrap) return;
-  var s=PL_STATE.img; var html='';
-  // Cajas del tag buscado (si aplica) en esta pantalla
-  var tags=[];
-  if(tag){ var r=plSearch(tag); tags=r.tags; }
-  var drawn={};
-  tags.forEach(function(t){
-    plBoxesForTag(t).forEach(function(b){
-      if(b.s!==s) return;
-      var key=t+'|'+b.x+'|'+b.y; if(drawn[key])return; drawn[key]=1;
-      html+=plBoxHTML(t,b);
-    });
-  });
-  // Además, todas las cajas de usuario de esta pantalla (para poder borrarlas)
+  wrap.classList.toggle('pl-editing', !!PL_STATE.editMode);
+  var s=PL_STATE.img; var html=''; var drawn={};
+  function add(t,b){ var key=t+'|'+b.x+'|'+b.y; if(drawn[key])return; drawn[key]=1; html+=plBoxHTML(t,b); }
+  if(PL_STATE.editMode){
+    // En edición: mostrar TODAS las cajas OCR (rojas) de esta pantalla para poder corregirlas
+    plOcrBoxesForScreen(s).forEach(function(o){ add(o.t,o.b); });
+  } else if(tag){
+    // Modo normal: solo las cajas del tag buscado
+    var r=plSearch(tag);
+    r.tags.forEach(function(t){ plBoxesForTag(t).forEach(function(b){ if(b.s===s) add(t,b); }); });
+  }
+  // Cajas de usuario (verdes) de esta pantalla — siempre
   var ub=plUserBoxes();
-  Object.keys(ub).forEach(function(t){
-    var u=ub[t]; if(u.s!==s) return;
-    var key=t+'|'+u.x+'|'+u.y; if(drawn[key])return; drawn[key]=1;
-    html+=plBoxHTML(t,{s:u.s,x:u.x,y:u.y,w:u.w,h:u.h,user:true});
-  });
+  Object.keys(ub).forEach(function(t){ var u=ub[t]; if(u.s!==s) return; add(t,{s:u.s,x:u.x,y:u.y,w:u.w,h:u.h,user:true}); });
   wrap.innerHTML=html;
 }
 function plBoxHTML(t,b){
   var w=Math.max(b.w,0.03), h=Math.max(b.h,0.018);
   var left=Math.max(0,b.x- (w-b.w)/2), top=Math.max(0,b.y-(h-b.h)/2);
   var del=b.user?('<span class="pl-del" onclick="plDelBoxUI(event,\''+t+'\')">×</span>'):'';
-  return '<div class="pl-box'+(b.user?' user':'')+'" style="left:'+(left*100)+'%;top:'+(top*100)+'%;width:'+(w*100)+'%;height:'+(h*100)+'%">'+
+  return '<div class="pl-box'+(b.user?' user':'')+'"'+
+    ' data-tag="'+t+'" data-user="'+(b.user?1:0)+'" data-s="'+b.s+'" data-x="'+b.x+'" data-y="'+b.y+'" data-w="'+b.w+'" data-h="'+b.h+'"'+
+    ' onclick="plBoxTap(event,this)"'+
+    ' style="left:'+(left*100)+'%;top:'+(top*100)+'%;width:'+(w*100)+'%;height:'+(h*100)+'%">'+
     '<span class="pl-lbl">'+t+'</span>'+del+'</div>';
+}
+// Tocar un recuadro existente en modo edición: corregir su ID o borrarlo
+function plBoxTap(ev,el){
+  if(!PL_STATE.editMode) return;
+  ev.stopPropagation();
+  var t=el.getAttribute('data-tag');
+  var isUser=el.getAttribute('data-user')==='1';
+  var b={s:+el.getAttribute('data-s'),x:+el.getAttribute('data-x'),y:+el.getAttribute('data-y'),w:+el.getAttribute('data-w'),h:+el.getAttribute('data-h')};
+  var nv=prompt('Corrige el ID de este recuadro.\n(Déjalo VACÍO y acepta para BORRARLO)', t);
+  if(nv===null) return;               // canceló
+  nv=nv.trim();
+  if(nv===''){                        // borrar
+    if(isUser) plDelBox(t); else plHideOCR(t,b);
+    plRenderBoxes(PL_STATE.editTag||null); return;
+  }
+  var norm=plNorm(nv); if(!norm) return;
+  if(norm===plNorm(t)){ plRenderBoxes(PL_STATE.editTag||null); return; } // sin cambio real
+  // Renombrar: quitar el original (ocultar si es OCR, borrar si es de usuario) y crear el corregido en la misma posición
+  if(isUser) plDelBox(t); else plHideOCR(t,b);
+  plSaveBox(norm,{s:b.s,x:b.x,y:b.y,w:b.w,h:b.h});
+  PL_STATE.editTag=norm;
+  plRenderBoxes(norm);
 }
 function plDelBoxUI(ev,t){
   ev.stopPropagation();
@@ -3497,18 +3537,20 @@ function plToggleEdit(){
   PL_STATE.editMode=!PL_STATE.editMode;
   document.getElementById('pl-edit-btn').classList.toggle('on',PL_STATE.editMode);
   updEditHint();
+  plRenderBoxes(PL_STATE.editTag||null);
 }
 function updEditHint(){
   var h=document.getElementById('pl-hint');
   if(PL_STATE.editMode){
     h.style.display='';
-    h.textContent=PL_STATE.editTag
-      ? ('Toca sobre el equipo "'+PL_STATE.editTag+'" para marcarlo')
-      : 'Toca sobre un equipo y te pediré su ID para marcarlo';
+    h.textContent='Toca un recuadro para corregir su ID o borrarlo · Toca un lugar vacío para agregar uno';
   } else h.style.display='none';
 }
 function plStageTap(ev){
   if(!PL_STATE.editMode) return;
+  // Si tocaste sobre un recuadro existente, lo maneja plBoxTap (no creamos uno nuevo)
+  var tgt=ev.target||(ev.changedTouches&&ev.changedTouches[0]&&document.elementFromPoint(ev.changedTouches[0].clientX,ev.changedTouches[0].clientY));
+  if(tgt&&tgt.closest&&tgt.closest('.pl-box')) return;
   var stage=document.getElementById('pl-stage');
   var rect=stage.getBoundingClientRect();
   var pt=ev.changedTouches?ev.changedTouches[0]:ev;
