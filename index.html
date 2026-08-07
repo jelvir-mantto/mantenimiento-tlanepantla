@@ -7,6 +7,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Mant. Tlanepantla">
 <title>Mantenimiento · Tlanepantla</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#12b886">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Mantto">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -296,7 +302,7 @@ tr.selected td{background:#FEF2F2!important}
       <h1>Mantenimiento</h1>
       <p>Planta Tlanepantla · FHESA</p>
       <div class="byl">by Joao Elvir</div>
-      <div class="byl" style="margin-top:2px;opacity:.6;font-size:10px">v2.2 · editar recuadros</div>
+      <div class="byl" style="margin-top:2px;opacity:.6;font-size:10px">v2.3 · offline</div>
     </div>
     <div class="lerr" id="loginErr"></div>
     <div class="fg" style="margin-bottom:9px"><label class="llbl">Usuario</label><input id="l-user" class="linput" type="text" placeholder="Ingresa tu usuario" autocapitalize="none"></div>
@@ -4430,6 +4436,14 @@ async function finalizarInspeccion(){
 }
 
 
+</script>
+<script>
+// Registro offline (PWA): guarda la app para que abra con datos o sin señal tras la 1ra carga en WiFi
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(err){ console.warn('SW no registrado:', err); });
+  });
+}
 </script>
 </body>
 </html>
