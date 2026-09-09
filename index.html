@@ -222,6 +222,39 @@ tr:last-child td{border-bottom:none}
 .modal{background:var(--bg);border-radius:20px 20px 0 0;padding:18px 15px 32px;width:100%;max-width:540px;max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;position:relative;border:0.5px solid var(--brd)}
 @media(min-width:600px){.moverlay{align-items:center}.modal{border-radius:var(--rl);max-height:82vh;padding-bottom:20px}}
 .modal h2{font-size:15px;font-weight:700;margin-bottom:12px;padding-right:30px}
+
+/* DAY MODAL — vista compacta: todas las actividades a la vista */
+.modal.mday{max-width:700px;max-height:96vh;padding:14px 13px 18px}
+@media(min-width:600px){.modal.mday{max-height:94vh}}
+.modal.mday h2{margin-bottom:6px}
+.dbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 6px;padding-bottom:5px;border-bottom:0.5px solid var(--brd)}
+.dcount{font-size:11px;font-weight:700;color:var(--text2)}
+.dact{border-bottom:0.5px solid var(--brd)}
+.dact:last-child{border-bottom:none}
+.dact-h{display:flex;align-items:center;gap:7px;padding:7px 0;cursor:pointer;touch-action:manipulation}
+.dact-h:active{opacity:.6}
+.dact-car{font-size:9px;color:var(--text2);flex-shrink:0;width:9px;transition:transform .15s}
+.dact.on .dact-car{transform:rotate(90deg)}
+.dact-txt{flex:1;min-width:0}
+.dact-desc{font-size:13px;font-weight:700;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dact-meta{font-size:10.5px;color:var(--text2);line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dact.on .dact-desc,.dact.on .dact-meta{white-space:normal;overflow:visible}
+.dact-h .bdg{flex-shrink:0}
+.dact-b{display:none;padding:0 0 9px 16px}
+.dact.on .dact-b{display:block}
+.modal.mday.dense .dact-h{padding:4px 0}
+.modal.mday.dense .dact-desc{font-size:12px}
+.modal.mday.dense .dact-meta{font-size:10px;line-height:1.3}
+.modal.mday.dense2 .dact-h{padding:2px 0}
+.modal.mday.dense2 .dact-desc{font-size:11.5px;line-height:1.25}
+.modal.mday.dense2 .dact-meta{font-size:9.5px;line-height:1.25}
+.dord{display:flex;flex-direction:column;gap:2px;flex-shrink:0;margin-right:1px}
+.ordb{width:22px;height:15px;padding:0;font-size:8px;line-height:1;display:flex;align-items:center;justify-content:center;border:0.5px solid var(--brd);border-radius:4px;background:var(--bg2);color:var(--text2);cursor:pointer;touch-action:manipulation}
+.ordb:active{background:var(--brd)}
+.ordb:disabled{opacity:.25;cursor:default}
+.modal.mday.dense2 .ordb{height:13px}
+.dact.mov{animation:movfx .45s ease}
+@keyframes movfx{0%{background:var(--Abg)}100%{background:transparent}}
 .mclose{position:absolute;top:13px;right:13px;background:var(--bg2);border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;color:var(--text);font-weight:700}
 
 /* COMMENTS */
@@ -2020,7 +2053,8 @@ function rPanel(){
   document.getElementById('p-hoy-ct').textContent=admin?'Actividades de hoy':'Mis actividades de hoy';
   const hA=md.acts.filter(a=>a.fecha===ts);
   const hI=md.incs.filter(i=>(i.fechaProg||'')=== ts&&(nom===null||i.tecAsig===nom||i.tec===nom));
-  const allH=[...hA.map(a=>({...a,_t:'act'})),...hI.map(i=>({...i,_t:'inc',desc:i.desc}))];
+  const allH=[...hA.map(a=>({...a,_t:'act'})),...hI.map(i=>({...i,_t:'inc',desc:i.desc}))]
+    .sort((x,y)=>(x.ordDia==null?9999:x.ordDia)-(y.ordDia==null?9999:y.ordDia));
   document.getElementById('p-hoy').innerHTML=allH.length===0?`<div class="empty">Sin actividades para hoy</div>`
     :allH.map(a=>`<div class="ri">
       <div style="flex:1;overflow:hidden">
@@ -2039,7 +2073,14 @@ function rPanel(){
 }
 
 // ═══ DAY MODAL ═══
+// Poner en false si quieres que los técnicos también puedan reordenar el día
+const REORDEN_SOLO_ADMIN=true;
+let DAY_DS=null;            // día abierto en el modal
+let DAY_OPEN=new Set();     // tarjetas expandidas (se conservan al reordenar)
+let DAY_MOV=null;           // tarjeta recién movida (para resaltarla)
+
 function openDayModal(ds){
+  if(ds!==DAY_DS)DAY_OPEN=new Set();
   const db=gdb();const nom=isAdm()?null:curNom();const md=gmd(db,mak());
   let acts=[],incs=[];
   Object.values(db.meses).forEach(m2=>{
@@ -2048,46 +2089,151 @@ function openDayModal(ds){
   });
   const d=new Date(ds+'T12:00:00');
   document.getElementById('gModalTitle').textContent=`${DC[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()]}`;
+  DAY_DS=ds;
+  const todas=[...acts,...incs].sort((x,y)=>(x.ordDia==null?9999:x.ordDia)-(y.ordDia==null?9999:y.ordDia));
+  const puedeOrd=(!REORDEN_SOLO_ADMIN||isAdm())&&todas.length>1;
   let html='';
-  if(acts.length===0&&incs.length===0)html=`<div class="empty">Sin actividades para este día${nom?' asignadas a ti':''}</div>`;
-  [...acts,...incs].forEach(a=>{
+  if(todas.length===0)html=`<div class="empty">Sin actividades para este día${nom?' asignadas a ti':''}</div>`;
+  else html+=`<div class="dbar">
+    <span class="dcount">${todas.length} actividad${todas.length===1?'':'es'} programada${todas.length===1?'':'s'}</span>
+    <span style="display:flex;gap:5px">
+      ${puedeOrd?`<button class="btnXs" title="Restablecer el orden original" onclick="resetOrdenDia()">&#8635; Orden</button>`:''}
+      <button class="btnXs" id="dToggleAll" onclick="dExpandAll(this)">Expandir todo</button>
+    </span>
+  </div>`;
+  todas.forEach((a,idx)=>{
     const est=a.est;const locked=a.locked;const isInc=a._s==='inc';
     const canE=isAdm()||(a.tec===curNom()||a.tecAsig===curNom());
     const canChg=canE&&(!locked||isAdm());
-    html+=`<div style="padding:10px 0;border-bottom:0.5px solid var(--brd)">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:5px">
-        <div style="flex:1;overflow:hidden">
-          <div style="font-size:13px;font-weight:700">${a.desc||'Sin descripción'}${isInc?' <span class="bdg bA" style="font-size:9px">Inc.</span>':''}${locked?' <span class="lckbdg">🔒</span>':''}</div>
-          <div style="font-size:11px;color:var(--text2);line-height:1.7">${a.actId||a.ot||''} ${a.equipo||a.maq?'· '+(a.equipo||a.maq)+(a.descEquipo?' <span style="font-size:10px;color:var(--Gtxt)">('+a.descEquipo+')</span>':''):''} ${a.area?'· '+a.area:''}<br>Técnico: <b>${a.tecs&&a.tecs.length?a.tecs.join(', '):(a.tec||a.tecAsig||'—')}</b>${a.paro&&a.paro!=='No necesario'?` · <span class="paro-tag molino">Paro: ${a.paro}</span>`:''}</div>
+    const equipo=(a.equipo||a.maq)||'';
+    const tecTxt=a.tecs&&a.tecs.length?a.tecs.join(', '):(a.tec||a.tecAsig||'—');
+    const nCmt=(a.comments&&a.comments.length)||0;
+    const meta=[a.actId||a.ot||'',equipo?equipo+(a.descEquipo?' ('+a.descEquipo+')':''):'',a.area||'','Téc: '+tecTxt].filter(Boolean).join(' · ');
+    const k=`${a._s}-${a.id}`;
+    html+=`<div class="dact${DAY_OPEN.has(k)?' on':''}${DAY_MOV===k?' mov':''}" data-k="${k}">
+      <div class="dact-h" onclick="toggleDact(this)">
+        ${puedeOrd?`<span class="dord">
+          <button class="ordb" title="Subir" ${idx===0?'disabled':''} onclick="moverDact('${a.id}','${a._s}',-1,event)">&#9650;</button>
+          <button class="ordb" title="Bajar" ${idx===todas.length-1?'disabled':''} onclick="moverDact('${a.id}','${a._s}',1,event)">&#9660;</button>
+        </span>`:''}
+        <span class="dact-car">&#9654;</span>
+        <div class="dact-txt">
+          <div class="dact-desc">${a.desc||'Sin descripción'}${isInc?' <span class="bdg bA" style="font-size:9px">Inc.</span>':''}${locked?' <span class="lckbdg">🔒</span>':''}${nCmt?` <span class="lckbdg">💬 ${nCmt}</span>`:''}</div>
+          <div class="dact-meta">${meta}${a.paro&&a.paro!=='No necesario'?` · <span class="paro-tag molino">Paro: ${a.paro}</span>`:''}</div>
         </div>
         <span class="bdg ${est==='Completada'||est==='Realizada'?'bG':est==='En progreso'?'bA':'b0'}">${est}</span>
       </div>
-      ${canChg?`<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+      <div class="dact-b">
+      ${canChg?`<div style="display:flex;gap:6px;margin-top:2px;flex-wrap:wrap">
         <select style="flex:1;font-size:12px;padding:4px 7px;min-width:100px;background:var(--bg2)" onchange="cambEst('${a.id}','${a._s}',this.value,this)">
           ${(isInc?['Pendiente','En progreso','Realizada']:['Pendiente','En progreso','Completada','Pendiente Cerrar OT']).map(s=>`<option${est===s?' selected':''}>${s}</option>`).join('')}
         </select>
         ${isAdm()?`<button class="btnXs" onclick="openEditModal('${a.id}','${a._s}')">Editar</button>`:''}
       </div>`:''}
-      ${a.comments&&a.comments.length>0?`<div style="margin-top:7px">${a.comments.map((c,ci)=>`<div class="cmt" style="display:flex;align-items:flex-start;gap:4px"><div style="flex:1"><span class="cmt-who">${c.nom}</span><span class="cmt-d"> ${c.fecha}</span><br>${c.txt}</div>${isAdm()||c.nom===curNom()?`<button class="btnXs" style="color:var(--Rtxt);padding:1px 5px;font-size:10px;flex-shrink:0" onclick="elimCmt('${a.id}','${a._s}',${ci})">✕</button>`:''}</div>`).join('')}</div>`:''}
+      ${nCmt>0?`<div style="margin-top:7px">${a.comments.map((c,ci)=>`<div class="cmt" style="display:flex;align-items:flex-start;gap:4px"><div style="flex:1"><span class="cmt-who">${c.nom}</span><span class="cmt-d"> ${c.fecha}</span><br>${c.txt}</div>${isAdm()||c.nom===curNom()?`<button class="btnXs" style="color:var(--Rtxt);padding:1px 5px;font-size:10px;flex-shrink:0" onclick="elimCmt('${a.id}','${a._s}',${ci})">✕</button>`:''}</div>`).join('')}</div>`:''}
       ${canE?`<div style="display:flex;gap:5px;margin-top:7px">
         <input type="text" id="cmt-${a._s}-${a.id}" placeholder="Agregar comentario..." style="flex:1;font-size:12px;padding:5px 8px;background:var(--bg2)">
         <button class="btnXs" onclick="addCmt('${a.id}','${a._s}',document.getElementById('cmt-${a._s}-${a.id}').value)">Enviar</button>
       </div>`:''}
       ${isInc?renderFotos(a.fotos,a.foto):''}
+      </div>
     </div>`;
   });
   // Sin fecha (admin only)
   if(isAdm()){
     const sf=md.acts.filter(a=>!a.fecha).slice(0,8);
-    if(sf.length>0)html+=`<div style="margin-top:10px"><div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px">PROGRAMAR ACTIVIDAD PARA ESTE DÍA</div>
+    if(sf.length>0)html+=`<div class="dact dprog" style="margin-top:8px;border-top:0.5px solid var(--brd);border-bottom:none">
+      <div class="dact-h" onclick="toggleDact(this)"><span class="dact-car">&#9654;</span><div class="dact-txt"><div class="dact-meta" style="font-weight:700;text-transform:uppercase;letter-spacing:.04em">Programar actividad para este día (${sf.length})</div></div></div>
+      <div class="dact-b">
       ${sf.map(a=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:0.5px solid var(--brd)">
         <div style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.actId?('<b>'+a.actId+'</b> '):''} ${a.desc}</div>
         <button class="btn btnP btnSm" onclick="progActDia('${a.id}','${ds}')">+ Fecha</button>
       </div>`).join('')}
+      </div>
     </div>`;
   }
   document.getElementById('gModalBody').innerHTML=html;
-  openModal();
+  openModal('mday');
+  ajustaDensidad(todas.length);
+}
+
+// Abre/cierra el detalle de una actividad del día
+function toggleDact(h){
+  const el=h.parentElement;el.classList.toggle('on');
+  const k=el.dataset.k;if(!k)return;
+  if(el.classList.contains('on'))DAY_OPEN.add(k);else DAY_OPEN.delete(k);
+}
+
+// Expandir / contraer todas las actividades del día
+function dExpandAll(btn){
+  const items=[...document.querySelectorAll('#gModalBody .dact:not(.dprog)')];
+  const abrir=items.some(i=>!i.classList.contains('on'));
+  items.forEach(i=>{i.classList.toggle('on',abrir);const k=i.dataset.k;if(k){if(abrir)DAY_OPEN.add(k);else DAY_OPEN.delete(k)}});
+  btn.textContent=abrir?'Contraer todo':'Expandir todo';
+}
+
+// ═══ ORDEN MANUAL DE ACTIVIDADES DEL DÍA ═══
+// Devuelve las actividades del día ds, en el orden guardado
+function listaDia(db,ds){
+  const l=[];
+  Object.values(db.meses).forEach(m2=>{
+    (m2.acts||[]).forEach(a=>{if(a.fecha===ds)l.push({o:a,s:'act'})});
+    (m2.incs||[]).forEach(i=>{if((i.fechaProg||'')===ds)l.push({o:i,s:'inc'})});
+  });
+  return l.sort((x,y)=>(x.o.ordDia==null?9999:x.o.ordDia)-(y.o.ordDia==null?9999:y.o.ordDia));
+}
+
+// Sube (dir=-1) o baja (dir=1) una actividad dentro del día
+function moverDact(id,src,dir,ev){
+  if(ev){ev.stopPropagation();ev.preventDefault();}
+  if(!DAY_DS)return;
+  if(REORDEN_SOLO_ADMIN&&!isAdm())return;
+  const db=gdb();const l=listaDia(db,DAY_DS);
+  const i=l.findIndex(x=>String(x.o.id)===String(id)&&x.s===src);
+  const j=i+dir;
+  if(i<0||j<0||j>=l.length)return;
+  const t=l[i];l[i]=l[j];l[j]=t;
+  l.forEach((x,n)=>{x.o.ordDia=n});
+  svdb(db);
+  DAY_MOV=`${src}-${id}`;
+  redibujaDia();
+}
+
+// Restablece el orden original (por fecha de captura)
+function resetOrdenDia(){
+  if(!DAY_DS)return;
+  if(!confirm('¿Restablecer el orden original de este día?'))return;
+  const db=gdb();
+  listaDia(db,DAY_DS).forEach(x=>{delete x.o.ordDia});
+  svdb(db);DAY_MOV=null;redibujaDia();
+}
+
+// Redibuja el día conservando scroll y tarjetas abiertas
+function redibujaDia(){
+  const m=document.querySelector('#gModal .modal');const y=m?m.scrollTop:0;
+  const ds=DAY_DS;
+  openDayModal(ds);
+  const m2=document.querySelector('#gModal .modal');
+  if(m2)m2.scrollTop=y;
+  if(DAY_MOV){
+    const el=document.querySelector(`#gModalBody .dact[data-k="${DAY_MOV}"]`);
+    if(el&&el.scrollIntoView)el.scrollIntoView({block:'nearest'});
+    setTimeout(()=>{DAY_MOV=null;const e2=document.querySelector('#gModalBody .dact.mov');if(e2)e2.classList.remove('mov')},500);
+  }
+  rPanel();
+}
+
+// Ajusta la densidad para que todas las actividades quepan sin scroll
+function ajustaDensidad(n){
+  const m=document.querySelector('#gModal .modal');if(!m)return;
+  m.classList.remove('dense','dense2');
+  if(n>=1&&n<=2&&DAY_OPEN.size===0){[...m.querySelectorAll('.dact:not(.dprog)')].forEach(i=>{i.classList.add('on');if(i.dataset.k)DAY_OPEN.add(i.dataset.k)});const b=document.getElementById('dToggleAll');if(b)b.textContent='Contraer todo';}
+  const btAll=document.getElementById('dToggleAll');
+  if(btAll&&DAY_OPEN.size>0&&DAY_OPEN.size>=n)btAll.textContent='Contraer todo';
+  requestAnimationFrame(()=>{
+    if(m.scrollHeight>m.clientHeight+2)m.classList.add('dense');
+    requestAnimationFrame(()=>{if(m.scrollHeight>m.clientHeight+2)m.classList.add('dense2')});
+  });
 }
 
 function cerrarOT(id){
@@ -2262,7 +2408,7 @@ function addCmt(id,src,txt){
 
 function progActDia(id,ds){
   const db=gdb();const md=gmd(db,mak());const a=md.acts.find(x=>String(x.id)===String(id));
-  if(a){a.fecha=ds;}svdb(db);rProg();rPanel();closeModal();
+  if(a){a.fecha=ds;delete a.ordDia;}svdb(db);rProg();rPanel();closeModal();
 }
 
 // ═══ EDIT MODAL ═══
@@ -2319,7 +2465,9 @@ function saveEdit(id,src){
   a.edificio=document.getElementById('ea-edif').value.trim();
   a.nivel=document.getElementById('ea-nivel').value.trim();
   a.area=document.getElementById('ea-area').value.trim();
-  a.fecha=document.getElementById('ea-fecha').value;
+  const _nf=document.getElementById('ea-fecha').value;
+  if(_nf!==a.fecha)delete a.ordDia;  // al cambiar de día, se recoloca al final
+  a.fecha=_nf;
   a.tec=document.getElementById('ea-tec').value;const _t2=document.getElementById('ea-tec2')?.value||'';a.tecs=[a.tec,_t2].filter(Boolean);
   a.tipo=document.getElementById('ea-tipo').value;
   a.paro=document.getElementById('ea-paro').value;
@@ -2910,7 +3058,9 @@ function confirmTecPicker(){
   closeModal();
 }
 function syncTecInc(){const tecs=gdb().tecs;const el=document.getElementById('i-tec-asig');if(!el)return;el.innerHTML=`<option value="">— Sin asignar —</option>`+tecs.map(t=>`<option value="${t.nom}">${t.nom}</option>`).join('')}
-function openModal(){
+function openModal(variante){
+  const m=document.querySelector('#gModal .modal');
+  if(m){m.className='modal'+(variante?' '+variante:'');m.scrollTop=0;}
   document.getElementById('gModal').classList.add('on');
 }
 document.getElementById('gModalBody').addEventListener('click',function(e){
