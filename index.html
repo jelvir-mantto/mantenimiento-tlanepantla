@@ -527,6 +527,20 @@ tr.selected td{background:#FEF2F2!important}
     <button class="btn btnSm" style="margin-top:6px;font-size:12px;background:var(--Bbg);color:var(--Btxt);border-color:var(--B)" onclick="transferirMesAnterior()">⟵ Traer actividades pendientes del mes anterior</button>
   </div>
 
+  <div class="card" id="export-card">
+    <div class="ct">Exportar actividades a Excel</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="exp-rango" style="flex:1;min-width:140px">
+        <option value="1">Solo este mes</option>
+        <option value="2" selected>Últimos 2 meses</option>
+        <option value="3">Últimos 3 meses</option>
+        <option value="todo">Todo el historial guardado</option>
+      </select>
+      <button class="btn btnP btnSm" onclick="exportarActividades()">⬇ Exportar .xlsx</button>
+    </div>
+    <div id="exp-st" style="margin-top:7px;font-size:12px;min-height:14px;color:var(--text2)"></div>
+  </div>
+
   <!-- ── Modal confirmación importación ─────────────────────────────── -->
   <div id="imp-modal-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;padding:16px">
     <div style="background:var(--bg);border-radius:var(--rl);padding:22px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,0.3)">
@@ -4839,6 +4853,186 @@ function transferirMesAnterior(){
 }
 
 // ─── Limpiar todas las actividades del mes actual ───────────────────────
+// ═══ EXPORTAR ACTIVIDADES (Excel) ═══════════════════════════════════════
+// Genera un .xlsx con: Actividades, Pendientes (incidencias), Visitas,
+// Resumen por mes y Resumen por técnico. Solo administrador.
+function expDescargar(blob,nombre){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=nombre;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(url);},4000);
+}
+function expNombreMes(k){
+  const p=String(k).split('-');
+  return (MESES[parseInt(p[1],10)-1]||k)+' '+p[0];
+}
+function expCmts(c){
+  return toArr(c).map(function(x){return (x.nom||'')+' ('+(x.fecha||'')+'): '+(x.txt||'');}).join(' | ');
+}
+function exportarActividades(){
+  if(!isAdm()){alert('Solo el administrador puede exportar.');return;}
+  const st=document.getElementById('exp-st');
+  const setSt=function(t,c){if(st){st.style.color=c||'var(--text2)';st.textContent=t;}};
+  const sel=(document.getElementById('exp-rango')||{}).value||'2';
+  const db=gdb();
+  // Meses a incluir
+  let claves=[];
+  if(sel==='todo'){
+    claves=Object.keys(db.meses).sort();
+  } else {
+    const n=parseInt(sel,10)||1;
+    for(let i=n-1;i>=0;i--){
+      const d=new Date(HOY.getFullYear(),HOY.getMonth()-i,1);
+      claves.push(mk(d.getFullYear(),d.getMonth()));
+    }
+  }
+  const set=new Set(claves);
+  const hecha=function(e){return e==='Completada'||e==='Pendiente Cerrar OT'||e==='Realizada';};
+
+  // ── Hoja Actividades ──
+  const rowsA=[];
+  claves.forEach(function(k){
+    const md=db.meses[k];if(!md)return;
+    toArr(md.acts).forEach(function(a){
+      if(!a)return;
+      const tecs=(a.tecs&&a.tecs.length)?a.tecs.join(', '):(a.tec||'');
+      rowsA.push({
+        'Mes':expNombreMes(k),
+        'ID':a.actId||'',
+        'Descripción':a.desc||'',
+        'Equipo':a.equipo||'',
+        'Descripción equipo':a.descEquipo||'',
+        'Edificio':a.edificio||'',
+        'Nivel':a.nivel||'',
+        'Área':a.area||'',
+        'Tipo':a.tipo||'',
+        'Paro programado':a.paro||'No necesario',
+        'Fecha programada':a.fecha||'',
+        'Técnico(s)':tecs,
+        'Estado':a.est||'',
+        'Fecha cierre OT':a.fechaCierre||'',
+        'Comentarios':expCmts(a.comments)
+      });
+    });
+  });
+
+  // ── Hoja Pendientes (incidencias) ──
+  const rowsI=[];
+  claves.forEach(function(k){
+    const md=db.meses[k];if(!md)return;
+    toArr(md.incs).forEach(function(i){
+      if(!i)return;
+      rowsI.push({
+        'Mes':expNombreMes(k),
+        'OT':i.ot||'',
+        'ID / Folio':i.iid||'',
+        'Área que reporta':i.orig||'',
+        'Máquina / Equipo':i.maq||'',
+        'Área afectada':i.area||'',
+        'Tipo medición':i.tmed||'',
+        'Valor':i.val||'',
+        'Nivel de alarma':i.alarma||'',
+        'Tipo trabajo':i.tipo||'',
+        'Técnico asignado':i.tecAsig||i.tec||'',
+        'Fecha reporte':i.fecha||'',
+        'Fecha programada':i.fechaProg||'',
+        'Estado':i.est||'',
+        'Descripción':i.desc||'',
+        'Comentarios':expCmts(i.comments)
+      });
+    });
+  });
+
+  // ── Hoja Visitas ──
+  const rowsV=toArr(db.visitas).filter(function(v){return v&&v.fecha&&set.has(String(v.fecha).slice(0,7));})
+    .sort(function(a,b){return String(a.fecha).localeCompare(String(b.fecha));})
+    .map(function(v){return {'Fecha':v.fecha,'Técnico':v.tec||'','Motivo':v.motivo||'','Área':v.area||'','Tiempo de paro (hrs)':v.paro||0};});
+
+  if(!rowsA.length&&!rowsI.length&&!rowsV.length){
+    setSt('No hay datos en el periodo seleccionado.','var(--Rtxt)');return;
+  }
+
+  // ── Resumen por mes ──
+  const resMes=[['Mes','Total','Realizadas','En progreso','Pendientes','Sin fecha','Sin técnico','% cumplimiento']];
+  claves.forEach(function(k){
+    const md=db.meses[k];if(!md)return;
+    const acts=toArr(md.acts);if(!acts.length)return;
+    const tot=acts.length;
+    const re=acts.filter(function(a){return hecha(a.est);}).length;
+    const ep=acts.filter(function(a){return a.est==='En progreso';}).length;
+    const pe=acts.filter(function(a){return a.est==='Pendiente';}).length;
+    const sf=acts.filter(function(a){return !a.fecha;}).length;
+    const st2=acts.filter(function(a){return !(a.tec||(a.tecs&&a.tecs.length));}).length;
+    resMes.push([expNombreMes(k),tot,re,ep,pe,sf,st2,Math.round(re/tot*1000)/10]);
+  });
+
+  // ── Resumen por técnico (mes × técnico) ──
+  const porTec={};
+  claves.forEach(function(k){
+    const md=db.meses[k];if(!md)return;
+    toArr(md.acts).forEach(function(a){
+      const lista=(a.tecs&&a.tecs.length)?a.tecs:[a.tec||'Sin asignar'];
+      lista.forEach(function(t){
+        const key=k+'|'+t;
+        if(!porTec[key])porTec[key]={k:k,t:t,tot:0,re:0,ep:0,pe:0};
+        const o=porTec[key];o.tot++;
+        if(hecha(a.est))o.re++;else if(a.est==='En progreso')o.ep++;else o.pe++;
+      });
+    });
+  });
+  const resTec=[['Mes','Técnico','Total','Realizadas','En progreso','Pendientes','% cumplimiento']];
+  Object.keys(porTec).sort().forEach(function(key){
+    const o=porTec[key];
+    resTec.push([expNombreMes(o.k),o.t,o.tot,o.re,o.ep,o.pe,o.tot?Math.round(o.re/o.tot*1000)/10:0]);
+  });
+
+  const nombre='actividades_mantenimiento_'+hoyS()+(typeof XLSX==='undefined'?'.csv':'.xlsx');
+
+  // ── Sin librería XLSX: respaldo en CSV (solo actividades) ──
+  if(typeof XLSX==='undefined'){
+    const cols=rowsA.length?Object.keys(rowsA[0]):[];
+    const esc=function(v){v=String(v==null?'':v);return /[",\n;]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+    const csv='\uFEFF'+[cols.map(esc).join(',')].concat(rowsA.map(function(r){return cols.map(function(c){return esc(r[c]);}).join(',');})).join('\r\n');
+    expDescargar(new Blob([csv],{type:'text/csv;charset=utf-8'}),nombre);
+    setSt('✓ Exportadas '+rowsA.length+' actividades (CSV, sin Excel disponible).','var(--Gtxt)');
+    return;
+  }
+
+  try{
+    const wb=XLSX.utils.book_new();
+    const anchos=function(ws,filas,keys){
+      ws['!cols']=keys.map(function(k){
+        let m=k.length;
+        filas.forEach(function(r){const l=String(r[k]==null?'':r[k]).length;if(l>m)m=l;});
+        return {wch:Math.min(Math.max(m+2,8),60)};
+      });
+    };
+    const add=function(rows,hoja,keys){
+      const ws=rows.length?XLSX.utils.json_to_sheet(rows,{header:keys}):XLSX.utils.aoa_to_sheet([keys]);
+      if(rows.length)anchos(ws,rows,keys);
+      ws['!freeze']={xSplit:0,ySplit:1};
+      XLSX.utils.book_append_sheet(wb,ws,hoja);
+    };
+    add(rowsA,'Actividades',['Mes','ID','Descripción','Equipo','Descripción equipo','Edificio','Nivel','Área','Tipo','Paro programado','Fecha programada','Técnico(s)','Estado','Fecha cierre OT','Comentarios']);
+    add(rowsI,'Pendientes',['Mes','OT','ID / Folio','Área que reporta','Máquina / Equipo','Área afectada','Tipo medición','Valor','Nivel de alarma','Tipo trabajo','Técnico asignado','Fecha reporte','Fecha programada','Estado','Descripción','Comentarios']);
+    add(rowsV,'Visitas',['Fecha','Técnico','Motivo','Área','Tiempo de paro (hrs)']);
+    const w1=XLSX.utils.aoa_to_sheet(resMes);
+    w1['!cols']=[{wch:18},{wch:8},{wch:12},{wch:12},{wch:12},{wch:11},{wch:12},{wch:16}];
+    XLSX.utils.book_append_sheet(wb,w1,'Resumen por mes');
+    const w2=XLSX.utils.aoa_to_sheet(resTec);
+    w2['!cols']=[{wch:18},{wch:26},{wch:8},{wch:12},{wch:12},{wch:12},{wch:16}];
+    XLSX.utils.book_append_sheet(wb,w2,'Resumen por técnico');
+
+    const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    expDescargar(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),nombre);
+    setSt('✓ Exportado: '+rowsA.length+' actividades, '+rowsI.length+' pendientes, '+rowsV.length+' visitas.','var(--Gtxt)');
+  }catch(e){
+    console.error('Error exportando:',e);
+    setSt('Error al exportar: '+e.message,'var(--Rtxt)');
+  }
+}
+
 function limpiarMes(){
   if(!isAdm())return;
   const mesNom=document.getElementById('mesLbl').textContent||mak();
