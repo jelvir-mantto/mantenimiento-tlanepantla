@@ -3084,13 +3084,45 @@ function importFile(input){
       return;
     }
 
+    // ── Evitar actividades repetidas: omitir IDs ya registrados ──────────
+    const normId=function(x){return String(x==null?'':x).trim().toLowerCase();};
+    const idsRegistrados=function(excluirMesActual){
+      const set=new Set();const kAct=mak();
+      Object.keys(db.meses||{}).forEach(function(k){
+        if(excluirMesActual&&k===kAct)return;
+        ((db.meses[k]&&db.meses[k].acts)||[]).forEach(function(a){
+          const i=normId(a.actId);if(i)set.add(i);
+        });
+      });
+      return set;
+    };
+    // Devuelve {nuevas, omitidas}; también descarta IDs repetidos dentro del propio archivo
+    const filtrarDup=function(excluirMesActual){
+      const reg=idsRegistrados(excluirMesActual);const vistos=new Set();
+      const nuevas=[],omitidas=[];
+      parsedActs.forEach(function(a){
+        const i=normId(a.actId);
+        if(i&&(reg.has(i)||vistos.has(i))){omitidas.push(a);return;}
+        if(i)vistos.add(i);
+        nuevas.push(a);
+      });
+      return {nuevas:nuevas,omitidas:omitidas};
+    };
+    const resAdd=filtrarDup(false);   // modo "Agregar": compara contra todos los meses
+    const resRepl=filtrarDup(true);   // modo "Reemplazar": el mes actual se borra, no cuenta
+
     // ── Mostrar modal de confirmación ────────────────────────────────────
     const existentes=(gmd(db,mak()).acts||[]).length;
     const mesNom=document.getElementById('mesLbl').textContent||mak();
     const body=document.getElementById('imp-modal-body');
     body.innerHTML=
       'Archivo: <b>'+file.name+'</b><br>'+
-      'Actividades encontradas: <b>'+n+'</b><br>'+
+      'Actividades en el archivo: <b>'+n+'</b><br>'+
+      '<span style="color:var(--Gtxt)">Nuevas al agregar: <b>'+resAdd.nuevas.length+'</b></span> · '+
+      '<span style="color:var(--Atxt)">ID ya registrados (se omiten): <b>'+resAdd.omitidas.length+'</b></span><br>'+
+      (resRepl.omitidas.length!==resAdd.omitidas.length
+        ? '<span style="font-size:11px">Si reemplazas el mes: se cargan <b>'+resRepl.nuevas.length+'</b> (se omiten '+resRepl.omitidas.length+' ya registradas en otros meses).</span><br>'
+        : '')+
       'Mes destino: <b>'+mesNom+'</b><br>'+
       (existentes>0
         ? '<span style="color:var(--Atxt)">⚠ Ya hay <b>'+existentes+'</b> actividad(es) en este mes.</span>'
@@ -3111,10 +3143,10 @@ function importFile(input){
       cerrarModal();
       const db2=gdb();const md2=gmd(db2,mak());
       if(!md2.nA)md2.nA=1;
-      md2.acts=parsedActs; // reemplaza
+      md2.acts=resRepl.nuevas; // reemplaza (sin IDs ya registrados en otros meses)
       svdb(db2);
       st.style.color='var(--Gtxt)';
-      st.textContent='✓ '+n+' actividades importadas (mes reemplazado). Toca cada fila para asignar técnico y fecha.';
+      st.textContent='✓ '+resRepl.nuevas.length+' actividades importadas (mes reemplazado)'+(resRepl.omitidas.length?' · '+resRepl.omitidas.length+' omitidas por ID ya registrado':'')+'. Toca cada fila para asignar técnico y fecha.';
       rProg();rPanel();input.value='';
     };
 
@@ -3122,10 +3154,12 @@ function importFile(input){
       cerrarModal();
       const db2=gdb();const md2=gmd(db2,mak());
       if(!md2.nA)md2.nA=1;
-      parsedActs.forEach(function(a){md2.acts.push(a);});
+      resAdd.nuevas.forEach(function(a){md2.acts.push(a);});
       svdb(db2);
-      st.style.color='var(--Gtxt)';
-      st.textContent='✓ '+n+' actividades agregadas al mes. Toca cada fila para asignar técnico y fecha.';
+      st.style.color=resAdd.nuevas.length?'var(--Gtxt)':'var(--Atxt)';
+      st.textContent=(resAdd.nuevas.length
+        ? '✓ '+resAdd.nuevas.length+' actividades agregadas al mes'
+        : 'No se agregó nada: todas las actividades ya estaban registradas')+(resAdd.omitidas.length?' · '+resAdd.omitidas.length+' omitidas por ID ya registrado':'')+'. Toca cada fila para asignar técnico y fecha.';
       rProg();rPanel();input.value='';
     };
   }
